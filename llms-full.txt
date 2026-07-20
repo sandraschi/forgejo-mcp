@@ -1,0 +1,32 @@
+# forgejo-mcp
+> FastMCP 3.4.4+ server for Forgejo and Codeberg integration. Employs multi-profile structures, issues/PRs management, and actions runners check workflows.
+
+Generated on: 2026-07-20
+
+## Tools (16 registered)
+- **`forgejo_profile_list`**: List configured profiles.
+- **`forgejo_profile_add`**: Add profile credentials.
+- **`forgejo_profile_set_active`**: Swap active target.
+- **`forgejo_repo_list`**: Get repo logs and paths.
+- **`forgejo_repo_create`**: Scaffold new repository.
+- **`forgejo_repo_search`**: Search remote instance repos.
+- **`forgejo_issue_list`**: List namespace issues.
+- **`forgejo_issue_create`**: Add issue to repository.
+- **`forgejo_issue_comment`**: Leave comment on issues/PRs.
+- **`forgejo_pr_list`**: View repository pulls.
+- **`forgejo_pr_create`**: Create merge requests.
+- **`forgejo_pr_merge`**: Complete repository PR merge.
+- **`forgejo_pr_diff`**: View raw git diff details.
+- **`forgejo_runner_list`**: Monitor active Gitea/Forgejo runner agents.
+- **`forgejo_workflow_runs`**: Inspect active Actions workflow jobs.
+- **`forgejo_file_get`**: Fetch raw file content.
+
+## Tech Stack
+- **Backend**: Python 3.12+, FastMCP 3.4.4+, FastAPI, uvicorn, HTTPX
+- **Frontend**: React 19, Vite, Tailwind CSS v3, Zustand, Lucide Icons
+- **Ports**: Frontend 10760, Backend 10761
+
+## Environment Variables
+- `FORGEJO_URL` / `FORGEJO_TOKEN` (Fallback env profile default)
+- `WEB_PORT` / `WEB_HOST` (Dashboard binding port)
+- `MCP_TRANSPORT` (Stdio default or http)

@@ -1,0 +1,84 @@
+{
+  "name": "forgejo-mcp",
+  "version": "0.1.0",
+  "description": "FastMCP 3.4.4+ server for Forgejo and Codeberg integration with multi-profile and runner monitoring",
+  "homepage": "https://github.com/sandraschi/forgejo-mcp",
+  "repository": "https://github.com/sandraschi/forgejo-mcp",
+  "author": "sandraschi",
+  "license": "GPL-3.0-only",
+  "mcp": {
+    "version": "3.4.4+",
+    "runtime": "python",
+    "tools": [
+      {
+        "name": "forgejo_profile_list",
+        "description": "List all configured connection profiles."
+      },
+      {
+        "name": "forgejo_profile_add",
+        "description": "Add a new connection profile."
+      },
+      {
+        "name": "forgejo_profile_set_active",
+        "description": "Set a profile as the active default."
+      },
+      {
+        "name": "forgejo_repo_list",
+        "description": "List repositories user has access to."
+      },
+      {
+        "name": "forgejo_repo_create",
+        "description": "Create a new repository under account."
+      },
+      {
+        "name": "forgejo_repo_search",
+        "description": "Search for repositories on the selected instance."
+      },
+      {
+        "name": "forgejo_issue_list",
+        "description": "List issues in a repository."
+      },
+      {
+        "name": "forgejo_issue_create",
+        "description": "Create a new issue in a repository."
+      },
+      {
+        "name": "forgejo_issue_comment",
+        "description": "Comment on an existing issue or pull request."
+      },
+      {
+        "name": "forgejo_pr_list",
+        "description": "List pull requests in a repository."
+      },
+      {
+        "name": "forgejo_pr_create",
+        "description": "Open a new pull request."
+      },
+      {
+        "name": "forgejo_pr_merge",
+        "description": "Merge a pull request."
+      },
+      {
+        "name": "forgejo_pr_diff",
+        "description": "Get the raw diff format of a Pull Request."
+      },
+      {
+        "name": "forgejo_runner_list",
+        "description": "List active Actions runners."
+      },
+      {
+        "name": "forgejo_workflow_runs",
+        "description": "List active/historical Gitea/Forgejo Actions runs."
+      },
+      {
+        "name": "forgejo_file_get",
+        "description": "Read contents of a file directly from repository."
+      }
+    ]
+  },
+  "webapp": {
+    "frontend_port": 10760,
+    "backend_port": 10761,
+    "theme": "Slate/Amber Dark Glassmorphism"
+  }
+}

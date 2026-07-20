@@ -1,0 +1,18 @@
+# forgejo-mcp: Forgejo & Codeberg Integration Substrate
+> FastMCP 3.4.4+ server with SOTA companion webapp. Allows dynamic multi-profile configuration switching (local instances & Codeberg.org) and runner monitoring.
+
+## Architecture
+- **Backend (Port 10761)**: Python/FastAPI backend proxy.
+- **Frontend (Port 10760)**: React/Vite companion dashboard (Slate/Amber Dark theme).
+- **Transport**: Stdio (Claude Desktop) and HTTP.
+
+## Documentation
+- [Primary Readme](README.md): Primary benefits and quick install JSON.
+- [Install Guide](INSTALL.md): Prerequisites and configuration details.
+- [Tool Reference](docs/TOOLS.md): Complete list of registered tools.
+- [Development Setup](docs/DEVELOPMENT.md): Coding guidelines and just commands.
+- [Troubleshooting](docs/TROUBLESHOOTING.md): Solutions for connectivity issues.
+
+## Configuration
+- [Pyproject](pyproject.toml): Python dependencies and build config.
+- [Profiles JSON](.env.profiles.json): Dynamic profile tokens (gitignored).
