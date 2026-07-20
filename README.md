@@ -1,4 +1,8 @@
-# Forgejo MCP Server & Companion WebApp
+# forgejo-mcp
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![FastMCP 3.4.4+](https://img.shields.io/badge/FastMCP-3.4.4+-orange.svg)](https://github.com/modelcontextprotocol/sdk)
 
 A Model Context Protocol (MCP) server designed to connect LLM agents to Forgejo and Codeberg instances. It includes a companion fullstack React web application built following fleet SOTA standards.
 
