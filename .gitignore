@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Node / Web Build
+node_modules/
+dist/
+web/dist/
+web/node_modules/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+.env.profiles.json
+
+# Databases and data
+data/
+*.db
+*.sqlite
+
+# OS-specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# JetBrains / VSCode
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
