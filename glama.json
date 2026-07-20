@@ -1,7 +1,7 @@
 {
   "name": "forgejo-mcp",
   "version": "0.1.0",
-  "description": "FastMCP 3.4.4+ server for Forgejo and Codeberg integration with multi-profile and runner monitoring",
+  "description": "FastMCP 3.4.4+ server and React companion webapp for Forgejo and Codeberg integration with multi-profile and runner monitoring",
   "homepage": "https://github.com/sandraschi/forgejo-mcp",
   "repository": "https://github.com/sandraschi/forgejo-mcp",
   "author": "sandraschi",
