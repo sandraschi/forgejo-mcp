@@ -317,3 +317,21 @@ class ForgejoClient:
             except Exception as e:
                 return {"success": False, "error": f"Failed to decode file: {e}"}
         return result
+
+
+# Shared registry instance
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+registry = ProfileRegistry(PROJECT_ROOT)
+
+
+def get_client(profile_name: Optional[str] = None) -> ForgejoClient:
+    """Helper to resolve a client based on the requested profile, falling back to active."""
+    if profile_name:
+        prof = registry.get_profile(profile_name)
+        if not prof:
+            raise ValueError(f"Profile '{profile_name}' not found. Available profiles: {list(registry.profiles.keys())}")
+    else:
+        prof = registry.get_active()
+        if not prof:
+            raise ValueError("No active profile configured. Add a profile first.")
+    return ForgejoClient(prof)

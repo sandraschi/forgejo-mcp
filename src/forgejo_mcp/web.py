@@ -8,8 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .client import ForgejoClient
-from .server import registry, get_client
+from .client import ForgejoClient, registry, get_client
 
 router = APIRouter(prefix="/api")
 
@@ -192,6 +191,3 @@ def setup_webapp(app):
                 content="<h1>Static files missing</h1><p>Expected <code>web/dist</code> but it does not exist.</p>"
             )
 
-# Execute SPA mount immediately if called on startup
-from .server import web_app
-setup_webapp(web_app)

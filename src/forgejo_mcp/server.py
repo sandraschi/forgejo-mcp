@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import Context, FastMCP
 
-from .client import ForgejoClient, ProfileRegistry
+from .client import ForgejoClient, ProfileRegistry, registry, get_client
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
@@ -26,10 +26,6 @@ logger = logging.getLogger("forgejo-mcp.server")
 VERSION = "0.1.0"
 WEB_PORT = int(os.getenv("WEB_PORT", "10761"))
 WEB_HOST = os.getenv("WEB_HOST", "127.0.0.1")
-
-# Global instances
-project_root = Path(__file__).parent.parent.parent
-registry = ProfileRegistry(project_root)
 
 @asynccontextmanager
 async def server_lifespan(mcp_instance: FastMCP):
@@ -50,18 +46,7 @@ mcp = FastMCP(
 )
 
 
-# --- Helper to resolve client by profile ---
-def get_client(profile_name: Optional[str] = None) -> ForgejoClient:
-    """Helper to resolve a client based on the requested profile, falling back to active."""
-    if profile_name:
-        prof = registry.get_profile(profile_name)
-        if not prof:
-            raise ValueError(f"Profile '{profile_name}' not found. Available profiles: {list(registry.profiles.keys())}")
-    else:
-        prof = registry.get_active()
-        if not prof:
-            raise ValueError("No active profile configured. Add a profile first.")
-    return ForgejoClient(prof)
+
 
 
 # ── Profiles Management Tools ──────────────────────────────────────────────────
@@ -515,8 +500,9 @@ async def health_check():
     return {"status": "ok", "version": VERSION, "active_profile": registry.active_profile_name}
 
 # Import web routing endpoints (will create in web.py next)
-from .web import router as web_router
+from .web import router as web_router, setup_webapp
 web_app.include_router(web_router)
+setup_webapp(web_app)
 
 
 def main():
