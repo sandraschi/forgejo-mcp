@@ -1,15 +1,24 @@
-# forgejo-mcp — Claude Code Guide
+# forgejo-mcp — Claude / agent context
 
-## Overview
-FastMCP 3.4.4+ server for Forgejo and Codeberg integration.
+Forgejo / Codeberg MCP. Ports **11132** (frontend) / **11133** (backend). License **GPL-3.0-only**.
 
-## Entry Points
-- `uv run python -m forgejo_mcp`
+## Do
 
-## Standards
-- Format code using `just fmt` (ruff).
-- Lint code using `just lint` (ruff check).
-- Run unit tests with `just test` (pytest).
-- React frontend: Bun + Zustand + Tailwind CSS v3.
-- Build frontend: `just build-frontend` in root or `bun run build` in `/web`.
-- See [mcp-central-docs](https://github.com/sandraschi/mcp-central-docs) for global standards.
+- Use profiles for each instance; set active before mutating
+- Prefer dry checks (list/search) before merge/create
+- Read `docs/ONBOARDING.md` for PAT setup
+
+## Don't
+
+- Point this at GitHub.com (use git-github-mcp)
+- Reuse bluesky ports 10760/10761
+- Commit PATs or `.env.profiles.json` with secrets
+
+## Commands
+
+```powershell
+.\start.ps1
+uv run pytest
+```
+
+See AGENTS.md, README.md, llms-full.txt.
