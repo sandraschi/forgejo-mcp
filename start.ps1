@@ -8,8 +8,8 @@ param(
 
 $ScriptRoot = Split-Path -Parent $PSCommandPath
 $WebRoot = Join-Path $ScriptRoot "web"
-$BackendPort = 10761
-$FrontendPort = 10760
+$BackendPort = 11133
+$FrontendPort = 11132
 
 # --- Helper function to find and stop process on a port ---
 function Stop-PortListener {
@@ -81,7 +81,7 @@ if (-not $FrontendOnly) {
     
     # Form command line for Start-Process
     $argList = @("/c", "set WEB_PORT=$BackendPort && set WEB_HOST=127.0.0.1 && set MCP_TRANSPORT=stdio && uv run python -m forgejo_mcp")
-    Start-Process -FilePath "cmd.exe" -ArgumentList $argList -NoNewWindow:$false -Title "forgejo-mcp-backend"
+    Start-Process -FilePath "cmd.exe" -ArgumentList $argList -NoNewWindow:$false
     
     # Wait for backend to bind and respond
     Write-Host "Waiting for backend to be ready..." -ForegroundColor Yellow
