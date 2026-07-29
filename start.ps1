@@ -80,7 +80,10 @@ if (-not $FrontendOnly) {
     }
     
     # Form command line for Start-Process
-    $argList = @("/c", "set WEB_PORT=$BackendPort && set WEB_HOST=127.0.0.1 && set MCP_TRANSPORT=stdio && uv run python -m forgejo_mcp")
+    $argList = @(
+        "/c",
+        "cd /d `"$ScriptRoot`" && set WEB_PORT=$BackendPort && set WEB_HOST=127.0.0.1 && uv run uvicorn forgejo_mcp.server:web_app --host 127.0.0.1 --port $BackendPort --log-level warning"
+    )
     Start-Process -FilePath "cmd.exe" -ArgumentList $argList -NoNewWindow:$false
     
     # Wait for backend to bind and respond
