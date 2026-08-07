@@ -1,3 +1,5 @@
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
+
 # justfile for forgejo-mcp
 
 # Default command: list tasks
@@ -36,3 +38,9 @@ build-frontend:
 # Perform complete build (frontend and python wheel)
 build-all: build-frontend
     uv build
+
+# Bootstrap: install dev deps + pre-commit hook
+bootstrap:
+    uv sync --group dev
+    uv run pre-commit install
+    Write-Host "Pre-commit hooks installed." -ForegroundColor Green

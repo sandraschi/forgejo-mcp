@@ -16,11 +16,35 @@ import {
   Info,
   Sparkles,
   RefreshCw,
-  Cpu
+  Cpu,
+  Moon,
+  Sun
 } from 'lucide-react'
 import { useAppStore } from './store'
 
+// EXPERIMENTAL light mode (invert hack). Not fleet standard - see index.css.
+// Toggling `.dark` off the root flips the invert filter; persisted so the
+// choice survives reloads. Delete this + the CSS block to revert.
+const THEME_KEY = 'forgejo-light-mode'
+
 export default function App() {
+  const [light, setLight] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', !light)
+    try {
+      localStorage.setItem(THEME_KEY, light ? '1' : '0')
+    } catch {
+      // ignore storage errors
+    }
+  }, [light])
+
   const {
     activeView,
     sidebarCollapsed,
@@ -180,6 +204,17 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Day mode toggle */}
+            <button
+              type="button"
+              onClick={() => setLight((v) => !v)}
+              className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-400 hover:text-surface-100 transition-colors"
+              title={light ? "Switch to dark (experimental light mode)" : "Switch to light (experimental, ugly)"}
+              aria-label="Toggle light mode (experimental)"
+            >
+              {light ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
+
             {/* Local LLM Autodiscovery Status */}
             <div className="flex items-center gap-2 bg-surface-850 px-3 py-1 rounded-lg border border-surface-800 text-xs">
               <Cpu className="h-4 w-4 text-amber-500" />

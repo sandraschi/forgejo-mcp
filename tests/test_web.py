@@ -1,8 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from fastapi.testclient import TestClient
-from forgejo_mcp.server import web_app as app
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from fastapi.testclient import TestClient
+
+from forgejo_mcp.server import web_app as app
 
 client = TestClient(app)
 
@@ -12,12 +12,10 @@ def test_get_profiles(mock_registry):
     mock_profile = MagicMock()
     mock_profile.url = "http://localhost:3000"
     mock_profile.label = "Test"
-    
-    mock_registry.profiles = {
-        "test-profile": mock_profile
-    }
+
+    mock_registry.profiles = {"test-profile": mock_profile}
     mock_registry.active_profile_name = "test-profile"
-    
+
     response = client.get("/api/profiles")
     assert response.status_code == 200
     data = response.json()
@@ -29,9 +27,11 @@ def test_get_profiles(mock_registry):
 @patch("forgejo_mcp.web.get_client")
 def test_list_repositories(mock_get_client):
     mock_client = MagicMock()
-    mock_client.list_repositories = AsyncMock(return_value={"success": True, "data": [{"name": "repo1", "owner": {"login": "user1"}}]})
+    mock_client.list_repositories = AsyncMock(
+        return_value={"success": True, "data": [{"name": "repo1", "owner": {"login": "user1"}}]}
+    )
     mock_get_client.return_value = mock_client
-    
+
     response = client.get("/api/repos")
     assert response.status_code == 200
     data = response.json()

@@ -3,12 +3,12 @@ FastAPI routing for companion webapp integration, profile management, and proxy 
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .client import ForgejoClient, registry, get_client
+from .client import get_client, registry
 
 router = APIRouter(prefix="/api")
 
@@ -19,6 +19,7 @@ dist_dir = project_root / "web" / "dist"
 
 
 # ── Profile Management Endpoints ──────────────────────────────────────────────
+
 
 @router.get("/profiles")
 async def get_profiles():
@@ -32,13 +33,13 @@ async def get_profiles():
                 # Do not expose tokens to frontend for security
             }
             for name, p in registry.profiles.items()
-        }
+        },
     }
 
 
 class ProfilePayload:
     from pydantic import BaseModel
-    
+
     class Model(BaseModel):
         name: str
         url: str
@@ -50,12 +51,7 @@ class ProfilePayload:
 async def add_profile(payload: ProfilePayload.Model):
     """Add a new connection profile."""
     try:
-        registry.add_profile(
-            name=payload.name,
-            url=payload.url,
-            token=payload.token,
-            label=payload.label
-        )
+        registry.add_profile(name=payload.name, url=payload.url, token=payload.token, label=payload.label)
         return {"success": True, "message": f"Profile '{payload.label}' added successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -63,7 +59,7 @@ async def add_profile(payload: ProfilePayload.Model):
 
 class SetActivePayload:
     from pydantic import BaseModel
-    
+
     class Model(BaseModel):
         name: str
 
@@ -86,12 +82,9 @@ async def delete_profile(name: str):
 
 # ── Proxy Endpoints (Frontend ➔ Python client ➔ Forgejo API) ─────────────────
 
+
 @router.get("/repos")
-async def proxy_list_repos(
-    profile: Optional[str] = None,
-    page: int = 1,
-    limit: int = 50
-):
+async def proxy_list_repos(profile: str | None = None, page: int = 1, limit: int = 50):
     try:
         client = get_client(profile)
         res = await client.list_repositories(page, limit)
@@ -101,11 +94,7 @@ async def proxy_list_repos(
 
 
 @router.get("/runners")
-async def proxy_list_runners(
-    profile: Optional[str] = None,
-    owner: Optional[str] = None,
-    repo: Optional[str] = None
-):
+async def proxy_list_runners(profile: str | None = None, owner: str | None = None, repo: str | None = None):
     try:
         client = get_client(profile)
         res = await client.list_runners(owner, repo)
@@ -115,13 +104,7 @@ async def proxy_list_runners(
 
 
 @router.get("/workflows")
-async def proxy_list_workflows(
-    owner: str,
-    repo: str,
-    profile: Optional[str] = None,
-    page: int = 1,
-    limit: int = 20
-):
+async def proxy_list_workflows(owner: str, repo: str, profile: str | None = None, page: int = 1, limit: int = 20):
     try:
         client = get_client(profile)
         res = await client.list_workflows(owner, repo, page, limit)
@@ -132,12 +115,7 @@ async def proxy_list_workflows(
 
 @router.get("/issues")
 async def proxy_list_issues(
-    owner: str,
-    repo: str,
-    state: str = "open",
-    profile: Optional[str] = None,
-    page: int = 1,
-    limit: int = 20
+    owner: str, repo: str, state: str = "open", profile: str | None = None, page: int = 1, limit: int = 20
 ):
     try:
         client = get_client(profile)
@@ -149,12 +127,7 @@ async def proxy_list_issues(
 
 @router.get("/pulls")
 async def proxy_list_pulls(
-    owner: str,
-    repo: str,
-    state: str = "open",
-    profile: Optional[str] = None,
-    page: int = 1,
-    limit: int = 20
+    owner: str, repo: str, state: str = "open", profile: str | None = None, page: int = 1, limit: int = 20
 ):
     try:
         client = get_client(profile)
@@ -165,6 +138,7 @@ async def proxy_list_pulls(
 
 
 # ── SPA Mount Setup ───────────────────────────────────────────────────────────
+
 
 def setup_webapp(app):
     """Mounts built SPA static assets from web/dist or registers fallback route."""
@@ -185,9 +159,9 @@ def setup_webapp(app):
                 status_code=404,
             )
     else:
+
         @app.get("/", response_class=HTMLResponse)
         async def dev_hint():
             return HTMLResponse(
                 content="<h1>Static files missing</h1><p>Expected <code>web/dist</code> but it does not exist.</p>"
             )
-

@@ -6,7 +6,8 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import httpx
 
 logger = logging.getLogger("forgejo-mcp.client")
@@ -23,7 +24,7 @@ class ForgejoProfile:
         self.token = token
         self.label = label
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {
             "name": self.name,
             "url": self.url,
@@ -32,7 +33,7 @@ class ForgejoProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> "ForgejoProfile":
+    def from_dict(cls, data: dict[str, str]) -> "ForgejoProfile":
         return cls(
             name=data["name"],
             url=data["url"],
@@ -47,8 +48,8 @@ class ProfileRegistry:
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
         self.profiles_path = root_dir / DEFAULT_PROFILES_FILE
-        self.profiles: Dict[str, ForgejoProfile] = {}
-        self.active_profile_name: Optional[str] = None
+        self.profiles: dict[str, ForgejoProfile] = {}
+        self.active_profile_name: str | None = None
         self.load()
 
     def load(self) -> None:
@@ -69,16 +70,16 @@ class ProfileRegistry:
         # 2. Load from JSON profile file
         if self.profiles_path.exists():
             try:
-                with open(self.profiles_path, "r", encoding="utf-8") as f:
+                with open(self.profiles_path, encoding="utf-8") as f:
                     data = json.load(f)
-                    
+
                 active = data.get("active_profile")
                 loaded_profiles = data.get("profiles", {})
-                
+
                 for name, prof_data in loaded_profiles.items():
                     prof_data["name"] = name
                     self.profiles[name] = ForgejoProfile.from_dict(prof_data)
-                
+
                 if active and active in self.profiles:
                     self.active_profile_name = active
             except Exception as e:
@@ -86,7 +87,7 @@ class ProfileRegistry:
 
         # Set default active if none set
         if not self.active_profile_name and self.profiles:
-            self.active_profile_name = list(self.profiles.keys())[0]
+            self.active_profile_name = next(iter(self.profiles.keys()))
 
     def save(self) -> None:
         """Persists the profiles configuration to a local JSON file."""
@@ -118,7 +119,7 @@ class ProfileRegistry:
         if name in self.profiles:
             del self.profiles[name]
             if self.active_profile_name == name:
-                self.active_profile_name = list(self.profiles.keys())[0] if self.profiles else None
+                self.active_profile_name = next(iter(self.profiles.keys())) if self.profiles else None
             self.save()
             return True
         return False
@@ -130,12 +131,12 @@ class ProfileRegistry:
             return True
         return False
 
-    def get_active(self) -> Optional[ForgejoProfile]:
+    def get_active(self) -> ForgejoProfile | None:
         if self.active_profile_name:
             return self.profiles.get(self.active_profile_name)
         return None
 
-    def get_profile(self, name: str) -> Optional[ForgejoProfile]:
+    def get_profile(self, name: str) -> ForgejoProfile | None:
         return self.profiles.get(name)
 
 
@@ -151,24 +152,24 @@ class ForgejoClient:
             "User-Agent": "Forgejo-MCP-Server",
         }
 
-    def _request(self, method: str, path: str, **kwargs) -> Dict[str, Any]:
+    def _request(self, method: str, path: str, **kwargs) -> dict[str, Any]:
         """Synchronous HTTP request wrapper with rate limit checking."""
         url = f"{self.base_url}/{path.lstrip('/')}"
-        
+
         # Check standard headers injection
         headers = self.headers.copy()
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
-            
+
         try:
             with httpx.Client(timeout=10.0) as client:
                 response = client.request(method, url, headers=headers, **kwargs)
-                
+
                 # Check for rate limiting
                 if response.status_code == 429:
                     logger.warning(f"Rate limited by {self.profile.url}")
                     return {"success": False, "error": "Rate limit exceeded (HTTP 429)"}
-                
+
                 if response.status_code in (200, 201, 204):
                     if response.status_code == 204:
                         return {"success": True, "data": None}
@@ -178,30 +179,30 @@ class ForgejoClient:
                         return {"success": True, "data": response.json()}
                     else:
                         return {"success": True, "data": response.text}
-                
+
                 return {
-                    "success": False, 
+                    "success": False,
                     "error": f"API HTTP {response.status_code}: {response.text}",
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
         except Exception as e:
             logger.error(f"Forgejo Client error: {e}")
-            return {"success": False, "error": f"Connection error: {str(e)}"}
+            return {"success": False, "error": f"Connection error: {e!s}"}
 
-    async def _request_async(self, method: str, path: str, **kwargs) -> Dict[str, Any]:
+    async def _request_async(self, method: str, path: str, **kwargs) -> dict[str, Any]:
         """Asynchronous HTTP request wrapper with rate limit checking."""
         url = f"{self.base_url}/{path.lstrip('/')}"
         headers = self.headers.copy()
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
-            
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.request(method, url, headers=headers, **kwargs)
-                
+
                 if response.status_code == 429:
                     return {"success": False, "error": "Rate limit exceeded (HTTP 429)"}
-                
+
                 if response.status_code in (200, 201, 204):
                     if response.status_code == 204:
                         return {"success": True, "data": None}
@@ -210,84 +211,75 @@ class ForgejoClient:
                         return {"success": True, "data": response.json()}
                     else:
                         return {"success": True, "data": response.text}
-                        
+
                 return {
-                    "success": False, 
+                    "success": False,
                     "error": f"API HTTP {response.status_code}: {response.text}",
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
         except Exception as e:
-            return {"success": False, "error": f"Connection error: {str(e)}"}
+            return {"success": False, "error": f"Connection error: {e!s}"}
 
     # --- API Implementation Methods ---
 
-    async def get_user_info(self) -> Dict[str, Any]:
+    async def get_user_info(self) -> dict[str, Any]:
         return await self._request_async("GET", "user")
 
-    async def list_repositories(self, page: int = 1, limit: int = 50) -> Dict[str, Any]:
+    async def list_repositories(self, page: int = 1, limit: int = 50) -> dict[str, Any]:
         return await self._request_async("GET", "user/repos", params={"page": page, "limit": limit})
 
-    async def create_repository(self, name: str, description: str = "", private: bool = True) -> Dict[str, Any]:
-        payload = {
-            "name": name,
-            "description": description,
-            "private": private,
-            "auto_init": True
-        }
+    async def create_repository(self, name: str, description: str = "", private: bool = True) -> dict[str, Any]:
+        payload = {"name": name, "description": description, "private": private, "auto_init": True}
         return await self._request_async("POST", "user/repos", json=payload)
 
-    async def get_repository(self, owner: str, repo: str) -> Dict[str, Any]:
+    async def get_repository(self, owner: str, repo: str) -> dict[str, Any]:
         return await self._request_async("GET", f"repos/{owner}/{repo}")
 
-    async def search_repositories(self, q: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+    async def search_repositories(self, q: str, page: int = 1, limit: int = 20) -> dict[str, Any]:
         return await self._request_async("GET", "repos/search", params={"q": q, "page": page, "limit": limit})
 
-    async def list_issues(self, owner: str, repo: str, state: str = "open", page: int = 1, limit: int = 20) -> Dict[str, Any]:
+    async def list_issues(
+        self, owner: str, repo: str, state: str = "open", page: int = 1, limit: int = 20
+    ) -> dict[str, Any]:
         # state can be: open, closed, all
         return await self._request_async(
-            "GET", f"repos/{owner}/{repo}/issues", 
-            params={"state": state, "page": page, "limit": limit}
+            "GET", f"repos/{owner}/{repo}/issues", params={"state": state, "page": page, "limit": limit}
         )
 
-    async def create_issue(self, owner: str, repo: str, title: str, body: str = "") -> Dict[str, Any]:
+    async def create_issue(self, owner: str, repo: str, title: str, body: str = "") -> dict[str, Any]:
         return await self._request_async("POST", f"repos/{owner}/{repo}/issues", json={"title": title, "body": body})
 
-    async def get_issue(self, owner: str, repo: str, index: int) -> Dict[str, Any]:
+    async def get_issue(self, owner: str, repo: str, index: int) -> dict[str, Any]:
         return await self._request_async("GET", f"repos/{owner}/{repo}/issues/{index}")
 
-    async def create_issue_comment(self, owner: str, repo: str, index: int, body: str) -> Dict[str, Any]:
+    async def create_issue_comment(self, owner: str, repo: str, index: int, body: str) -> dict[str, Any]:
         return await self._request_async("POST", f"repos/{owner}/{repo}/issues/{index}/comments", json={"body": body})
 
-    async def list_pull_requests(self, owner: str, repo: str, state: str = "open", page: int = 1, limit: int = 20) -> Dict[str, Any]:
+    async def list_pull_requests(
+        self, owner: str, repo: str, state: str = "open", page: int = 1, limit: int = 20
+    ) -> dict[str, Any]:
         return await self._request_async(
-            "GET", f"repos/{owner}/{repo}/pulls", 
-            params={"state": state, "page": page, "limit": limit}
+            "GET", f"repos/{owner}/{repo}/pulls", params={"state": state, "page": page, "limit": limit}
         )
 
-    async def create_pull_request(self, owner: str, repo: str, title: str, head: str, base: str, body: str = "") -> Dict[str, Any]:
-        payload = {
-            "title": title,
-            "head": head,
-            "base": base,
-            "body": body
-        }
+    async def create_pull_request(
+        self, owner: str, repo: str, title: str, head: str, base: str, body: str = ""
+    ) -> dict[str, Any]:
+        payload = {"title": title, "head": head, "base": base, "body": body}
         return await self._request_async("POST", f"repos/{owner}/{repo}/pulls", json=payload)
 
-    async def get_pull_request(self, owner: str, repo: str, index: int) -> Dict[str, Any]:
+    async def get_pull_request(self, owner: str, repo: str, index: int) -> dict[str, Any]:
         return await self._request_async("GET", f"repos/{owner}/{repo}/pulls/{index}")
 
-    async def merge_pull_request(self, owner: str, repo: str, index: int, style: str = "merge") -> Dict[str, Any]:
+    async def merge_pull_request(self, owner: str, repo: str, index: int, style: str = "merge") -> dict[str, Any]:
         # style can be: merge, rebase, squash
-        return await self._request_async(
-            "POST", f"repos/{owner}/{repo}/pulls/{index}/merge", 
-            json={"Do": style}
-        )
+        return await self._request_async("POST", f"repos/{owner}/{repo}/pulls/{index}/merge", json={"Do": style})
 
-    async def get_pull_request_diff(self, owner: str, repo: str, index: int) -> Dict[str, Any]:
+    async def get_pull_request_diff(self, owner: str, repo: str, index: int) -> dict[str, Any]:
         headers = {"Accept": "application/vnd.gitea.v1.diff"}
         return await self._request_async("GET", f"repos/{owner}/{repo}/pulls/{index}", headers=headers)
 
-    async def list_runners(self, owner: Optional[str] = None, repo: Optional[str] = None) -> Dict[str, Any]:
+    async def list_runners(self, owner: str | None = None, repo: str | None = None) -> dict[str, Any]:
         """Retrieve active actions runners. Attempts global admin, falling back to repository-scoped."""
         if owner and repo:
             # Repo-scoped runners list
@@ -296,20 +288,22 @@ class ForgejoClient:
             # Global admin runners list
             return await self._request_async("GET", "admin/runners")
 
-    async def list_workflows(self, owner: str, repo: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+    async def list_workflows(self, owner: str, repo: str, page: int = 1, limit: int = 20) -> dict[str, Any]:
         """Fetch Gitea/Forgejo Actions runs for a repository."""
         # Note: Gitea/Forgejo action run list endpoints mirror GitHub API's structure
         return await self._request_async(
-            "GET", f"repos/{owner}/{repo}/actions/runs",
-            params={"page": page, "limit": limit}
+            "GET", f"repos/{owner}/{repo}/actions/runs", params={"page": page, "limit": limit}
         )
 
-    async def get_file_content(self, owner: str, repo: str, filepath: str, ref: str = "main") -> Dict[str, Any]:
+    async def get_file_content(self, owner: str, repo: str, filepath: str, ref: str = "main") -> dict[str, Any]:
         """Retrieves raw content of a file from the repository."""
         # Forgejo returns metadata + base64 content on GET /contents
-        result = await self._request_async("GET", f"repos/{owner}/{repo}/contents/{filepath.lstrip('/')}", params={"ref": ref})
+        result = await self._request_async(
+            "GET", f"repos/{owner}/{repo}/contents/{filepath.lstrip('/')}", params={"ref": ref}
+        )
         if result.get("success"):
             import base64
+
             try:
                 content_b64 = result["data"]["content"]
                 decoded = base64.b64decode(content_b64).decode("utf-8")
@@ -324,12 +318,14 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 registry = ProfileRegistry(PROJECT_ROOT)
 
 
-def get_client(profile_name: Optional[str] = None) -> ForgejoClient:
+def get_client(profile_name: str | None = None) -> ForgejoClient:
     """Helper to resolve a client based on the requested profile, falling back to active."""
     if profile_name:
         prof = registry.get_profile(profile_name)
         if not prof:
-            raise ValueError(f"Profile '{profile_name}' not found. Available profiles: {list(registry.profiles.keys())}")
+            raise ValueError(
+                f"Profile '{profile_name}' not found. Available profiles: {list(registry.profiles.keys())}"
+            )
     else:
         prof = registry.get_active()
         if not prof:
