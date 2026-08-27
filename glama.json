@@ -77,8 +77,8 @@
     ]
   },
   "webapp": {
-    "frontend_port": 10760,
-    "backend_port": 10761,
+    "frontend_port": 11132,
+    "backend_port": 11133,
     "theme": "Slate/Amber Dark Glassmorphism"
   }
 }
