@@ -17,7 +17,7 @@ run:
 
 # Run the MCP server in HTTP mode
 run-http:
-    $env:MCP_TRANSPORT="http" && uv run python -m forgejo_mcp
+    $env:MCP_TRANSPORT="http"; uv run python -m forgejo_mcp
 
 # Format code using ruff
 fmt:
@@ -33,7 +33,7 @@ test:
 
 # Build frontend production bundle
 build-frontend:
-    cd web && bun install && bun run build
+    cd web; bun install; bun run build
 
 # Perform complete build (frontend and python wheel)
 build-all: build-frontend
