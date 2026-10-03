@@ -40,10 +40,10 @@ export const useAppStore = create((set, get) => ({
     try {
       const res = await fetch('/api/profiles');
       const data = await res.json();
-      set({ 
-        profiles: data.profiles || {}, 
+      set({
+        profiles: data.profiles || {},
         activeProfile: data.active_profile || null,
-        profilesLoading: false 
+        profilesLoading: false
       });
       if (data.active_profile) {
         get().fetchRepos();
@@ -179,7 +179,7 @@ export const useAppStore = create((set, get) => ({
   detectLocalLlm: async () => {
     set({ localLlmStatus: 'checking' });
     const ports = [11434, 1234, 8000]; // Ollama, LM Studio, vLLM
-    
+
     for (const port of ports) {
       try {
         // Use proxy or direct fetch to check port. Direct fetch from browser is fine for local dev
@@ -191,8 +191,8 @@ export const useAppStore = create((set, get) => ({
             const data = await res.json();
             const models = data.models || [];
             const modelName = models.length > 0 ? models[0].name : 'Llama/Gemma';
-            set({ 
-              localLlmStatus: 'detected', 
+            set({
+              localLlmStatus: 'detected',
               localLlmUrl: url,
               localLlmModel: `Ollama (${modelName})`
             });
@@ -200,15 +200,15 @@ export const useAppStore = create((set, get) => ({
           }
         } else {
           // Standard check (general health or root)
-          const res = await fetch(url, { mode: 'no-cors' });
-          set({ 
-            localLlmStatus: 'detected', 
+          await fetch(url, { mode: 'no-cors' });
+          set({
+            localLlmStatus: 'detected',
             localLlmUrl: url,
             localLlmModel: port === 1234 ? 'LM Studio' : 'vLLM/Local'
           });
           return;
         }
-      } catch (e) {
+      } catch {
         // Continue scanning next port
       }
     }
