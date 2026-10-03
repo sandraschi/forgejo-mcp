@@ -40,3 +40,10 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# Fleet backup artifacts
+*.bak
+*.bak.*
+
+# Assfix working snapshots (regenerable; committed copy lives in docs/assess-reports/)
+reports/
