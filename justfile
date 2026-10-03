@@ -1,5 +1,7 @@
 set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 
+import 'scripts/just/fleet.just'
+
 # justfile for forgejo-mcp
 
 # Default command: list tasks
@@ -30,6 +32,14 @@ lint:
 # Run test suite
 test:
     uv run pytest tests/
+
+# Fleet gates: ruff + pytest + pyright + oxlint (web is JSX, no tsc/biome)
+ci:
+    uv run ruff check src/ tests/
+    uv run ruff format --check src/ tests/
+    uv run pyright src/
+    uv run pytest tests/ -q
+    cd web; npm run lint
 
 # Build frontend production bundle
 build-frontend:
