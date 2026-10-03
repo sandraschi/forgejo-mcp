@@ -1,153 +1,99 @@
-# start.ps1 - Launcher for forgejo-mcp server and React frontend
-
+﻿# Fleet unified launcher - do not edit logic here.
+# Change fleet-start.config.ps1 at the repo root instead.
 param(
+    [switch]$Headless,
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$ReuseIfRunning
 )
 
-$ScriptRoot = Split-Path -Parent $PSCommandPath
-$WebRoot = Join-Path $ScriptRoot "web"
-$BackendPort = 11133
-$FrontendPort = 11132
+$ErrorActionPreference = 'Stop'
+$ReposRoot = if ($env:FLEET_REPOS_ROOT) { $env:FLEET_REPOS_ROOT } else { 'D:\Dev\repos' }
+$EnginePath = Join-Path $ReposRoot 'mcp-central-docs\scripts\Invoke-FleetWebappStart.ps1'
 
-# --- Helper function to find and stop process on a port ---
-function Stop-PortListener {
-    param([int]$Port)
-    $pids = [System.Collections.Generic.HashSet[int]]::new()
-    $needle = ":$Port"
-    $raw = cmd /c "netstat -ano -p TCP 2>nul | findstr `"$needle`" | findstr LISTENING"
-    if ($raw) {
-        foreach ($line in ($raw -split "`r?`n")) {
-            if ([string]::IsNullOrWhiteSpace($line)) { continue }
-            $parts = ($line.Trim() -split '\s+')
-            if ($parts.Count -lt 5) { continue }
-            $procId = 0
-            if ([int]::TryParse($parts[-1], [ref]$procId) -and $procId -gt 4) {
-                [void]$pids.Add($procId)
-            }
+$configCandidates = @(
+    (Join-Path $PSScriptRoot 'fleet-start.config.ps1'),
+    (Join-Path (Split-Path -Parent $PSScriptRoot) 'fleet-start.config.ps1')
+)
+$configPath = $null
+foreach ($candidate in $configCandidates) {
+    if (Test-Path -LiteralPath $candidate) {
+        $configPath = $candidate
+        break
+    }
+}
+if (-not $configPath) {
+    Write-Host 'ERROR: Missing fleet-start.config.ps1 (repo root or beside start.ps1).' -ForegroundColor Red
+    exit 1
+}
+
+# Mode 1: Central Fleet Engine (when mcp-central-docs is available)
+if (Test-Path -LiteralPath $EnginePath) {
+    . $EnginePath
+    Start-FleetWebapp @PSBoundParameters -ConfigPath $configPath -LauncherRoot $PSScriptRoot
+    exit 0
+}
+
+# Mode 2: Standalone Fallback (Naked install on new machine / public user clone)
+Write-Host "Central fleet engine not found ($EnginePath) - starting in standalone mode." -ForegroundColor Yellow
+
+$cfg = . $configPath
+$repoRoot = Split-Path -Parent $PSScriptRoot
+if (Test-Path (Join-Path $PSScriptRoot 'pyproject.toml')) { $repoRoot = $PSScriptRoot }
+
+$backendPort = if ($cfg.BackendPort) { [int]$cfg.BackendPort } else { 10720 }
+$frontendPort = if ($cfg.FrontendPort) { [int]$cfg.FrontendPort } else { 10721 }
+
+$webRel = if ($cfg.WebRoot) { $cfg.WebRoot } else { 'webapp\frontend' }
+$webRoot = if ([System.IO.Path]::IsPathRooted($webRel)) { $webRel } else { Join-Path $repoRoot $webRel }
+if (-not (Test-Path -LiteralPath $webRoot)) { $webRoot = $PSScriptRoot }
+
+# 1. Start Backend
+if (-not $FrontendOnly -and $backendPort -gt 0 -and $cfg.Backend.Kind -ne 'none') {
+    Write-Host "Starting backend on :$backendPort ..." -ForegroundColor Cyan
+    $bWorkDir = if ($cfg.Backend.WorkDir) {
+        if ([System.IO.Path]::IsPathRooted($cfg.Backend.WorkDir)) { $cfg.Backend.WorkDir } else { Join-Path $repoRoot $cfg.Backend.WorkDir }
+    } else { $repoRoot }
+
+    $pyPath = if ($cfg.Backend.PythonPath) {
+        $parts = $cfg.Backend.PythonPath -split ';' | ForEach-Object {
+            if ([System.IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $repoRoot $_ }
         }
+        $parts -join ';'
+    } else { "$repoRoot;$repoRoot\src" }
+
+    $backendExec = if ($cfg.Backend.Kind -eq 'module-serve') {
+        $mod = if ($cfg.Backend.Module) { $cfg.Backend.Module } else { $cfg.Name }
+        $args = if ($cfg.Backend.ServeArgs) { $cfg.Backend.ServeArgs } else { '--serve' }
+        "python -m $mod $args"
+    } elseif ($cfg.Backend.Kind -eq 'cli-serve') {
+        $mod = if ($cfg.Backend.Module) { $cfg.Backend.Module } else { $cfg.Name }
+        "$mod --serve --port $backendPort"
+    } else {
+        $target = if ($cfg.Backend.UvicornTarget) { $cfg.Backend.UvicornTarget } else { 'app.main:app' }
+        "uvicorn $target --host 127.0.0.1 --port $backendPort"
     }
-    foreach ($pid in $pids) {
-        if ($pid -eq $PID) { continue }
-        Write-Host "Stopping process holding port $Port (PID: $pid)..." -ForegroundColor Yellow
-        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-    }
-    if ($pids.Count -gt 0) {
-        Start-Sleep -Milliseconds 300
+
+    $bCmd = "`$env:PYTHONPATH = '$pyPath'; `$env:WEB_PORT = '$backendPort'; Set-Location '$bWorkDir'; uv run --project '$repoRoot' $backendExec"
+    Start-Process powershell.exe -ArgumentList @('-NoProfile', '-NoExit', '-Command', $bCmd) -WorkingDirectory $bWorkDir
+}
+
+# 2. Start Frontend
+if (-not $BackendOnly -and $frontendPort -gt 0 -and (Test-Path -LiteralPath $webRoot)) {
+    Write-Host "Starting frontend on :$frontendPort ..." -ForegroundColor Cyan
+    if ($cfg.Frontend.PortEnvVar) { Set-Item -Path "Env:$($cfg.Frontend.PortEnvVar)" -Value "$frontendPort" }
+    if ($cfg.Frontend.ApiTargetEnv) { Set-Item -Path "Env:$($cfg.Frontend.ApiTargetEnv)" -Value "http://127.0.0.1:$backendPort" }
+
+    $cmdFlag = if ($Headless) { '/c' } else { '/k' }
+    if ($cfg.Frontend.Kind -eq 'next') {
+        Start-Process cmd.exe -ArgumentList @($cmdFlag, "npm run dev -- -p $frontendPort -H 127.0.0.1") -WorkingDirectory $webRoot
+    } else {
+        Start-Process cmd.exe -ArgumentList @($cmdFlag, "npm run dev -- --port $frontendPort --host 127.0.0.1") -WorkingDirectory $webRoot
     }
 }
 
-# --- Teardown Conflicting Ports ---
-Write-Host "Cleaning up ports $FrontendPort and $BackendPort..." -ForegroundColor Cyan
-Stop-PortListener -Port $FrontendPort
-Stop-PortListener -Port $BackendPort
-
-# --- Setup Python Environment ---
-if (-not $FrontendOnly) {
-    Write-Host "Verifying backend dependencies..." -ForegroundColor Cyan
-    if (-not (Test-Path (Join-Path $ScriptRoot ".venv"))) {
-        Write-Host "Virtual environment not found. Initializing..." -ForegroundColor Yellow
-        & uv venv
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "ERROR: Failed to create virtual environment" -ForegroundColor Red
-            exit 1
-        }
-    }
-    
-    # Check if package is installed in editable mode or install it
-    Write-Host "Syncing backend dependencies with uv..." -ForegroundColor Yellow
-    & uv pip install -e ".[dev]"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to install backend dependencies" -ForegroundColor Red
-        exit 1
-    }
-}
-
-# --- Launch Python Backend ---
-if (-not $FrontendOnly) {
-    Write-Host "Launching Python MCP backend on port $BackendPort..." -ForegroundColor Green
-    
-    # Run backend in a separate background window
-    $backendCmd = "uv"
-    $backendArgs = @("run", "python", "-m", "forgejo_mcp")
-    
-    # Set environment variables for the backend process
-    $envVars = @{
-        "WEB_PORT" = "$BackendPort"
-        "WEB_HOST" = "127.0.0.1"
-        "MCP_TRANSPORT" = "stdio" # Standard mode starts stdio and FastAPI HTTP in thread
-    }
-    
-    # Form command line for Start-Process
-    $argList = @(
-        "/c",
-        "cd /d `"$ScriptRoot`" && set WEB_PORT=$BackendPort && set WEB_HOST=127.0.0.1 && uv run uvicorn forgejo_mcp.server:web_app --host 127.0.0.1 --port $BackendPort --log-level warning"
-    )
-    Start-Process -FilePath "cmd.exe" -ArgumentList $argList -NoNewWindow:$false
-    
-    # Wait for backend to bind and respond
-    Write-Host "Waiting for backend to be ready..." -ForegroundColor Yellow
-    $retries = 30
-    $backendReady = $false
-    while ($retries -gt 0 -and -not $backendReady) {
-        try {
-            $response = Invoke-WebRequest -Uri "http://127.0.0.1:$BackendPort/health" -UseBasicParsing -ErrorAction SilentlyContinue
-            if ($response.StatusCode -eq 200) {
-                $backendReady = $true
-            }
-        } catch {}
-        if (-not $backendReady) {
-            Start-Sleep -Seconds 1
-            $retries--
-        }
-    }
-    
-    if (-not $backendReady) {
-        Write-Host "ERROR: Backend failed to start or respond on port $BackendPort within 30 seconds." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "Backend is ready!" -ForegroundColor Green
-}
-
-# --- Launch Frontend ---
-if (-not $BackendOnly) {
-    if (-not (Test-Path $WebRoot)) {
-        Write-Host "ERROR: Frontend folder 'web' does not exist." -ForegroundColor Red
-        exit 1
-    }
-    
-    Write-Host "Verifying frontend dependencies..." -ForegroundColor Cyan
-    if (-not (Test-Path (Join-Path $WebRoot "node_modules"))) {
-        Write-Host "node_modules not found in web folder. Installing with bun..." -ForegroundColor Yellow
-        Set-Location $WebRoot
-        & bun install
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "ERROR: Frontend install failed" -ForegroundColor Red
-            Set-Location $ScriptRoot
-            exit 1
-        }
-        Set-Location $ScriptRoot
-    }
-    
-    if (-not $NoBrowser) {
-        # Launch browser to frontend URL when ready
-        $frontendUrl = "http://127.0.0.1:$FrontendPort"
-        Write-Host "Will open browser to $frontendUrl" -ForegroundColor Gray
-        Start-ThreadJob -ScriptBlock {
-            param($url)
-            Start-Sleep -Seconds 2
-            Start-Process $url
-        } -ArgumentList $frontendUrl | Out-Null
-    }
-    
-    Write-Host "Starting Vite frontend dev server on port $FrontendPort..." -ForegroundColor Green
-    Set-Location $WebRoot
-    & bun run dev -- --port $FrontendPort --host 127.0.0.1 --strictPort
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Vite server exited with code $LASTEXITCODE" -ForegroundColor Red
-        Set-Location $ScriptRoot
-        exit $LASTEXITCODE
-    }
-    Set-Location $ScriptRoot
+# 3. Open Browser
+if (-not $NoBrowser -and -not $Headless -and -not $BackendOnly -and $frontendPort -gt 0) {
+    Start-Process "http://127.0.0.1:$frontendPort/"
 }
