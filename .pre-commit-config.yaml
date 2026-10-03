@@ -1,0 +1,29 @@
+# Pre-commit for forgejo-mcp (adapted from the fleet template:
+# this repo's webapp is plain JSX + oxlint, not TS + Biome, so the
+# template's biome/tsc hooks are replaced with an oxlint equivalent).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: ps51-parse
+        name: PowerShell 5.1 syntax gate
+        entry: powershell.exe -NoProfile -File scripts/Test-Ps51Parse.ps1 -Path .
+        language: system
+        files: \.ps1$
+        pass_filenames: false
+      - id: oxlint-webapp
+        name: oxlint (web companion)
+        entry: powershell.exe -NoProfile -Command Set-Location web; npx --no-install oxlint --deny-warnings src
+        language: system
+        files: ^web/src/.*\.jsx$
+        pass_filenames: false
