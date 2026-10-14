@@ -17,6 +17,11 @@ Update saved MCP tool calls; REST API is unchanged.
 - `tool_details` (live descriptions + read-only flags) in `/api/capabilities`;
   prompt text in `/api/skills`
 - pytest-cov gate (`--cov-fail-under=70`, currently 78%), 37 tests
+- Webapp catch-them-all: Inbox, Tools, Skills, Chat (SSE streaming, 4
+  personalities, skill-first, persisted history), Settings (LLM providers),
+  Logs (ring buffer), Help — 12 views; `text-xs` eliminated
+- Skill rebuild (97 lines, 3 workflows, troubleshooting); Playwright e2e
+  (18 specs green) + `just e2e` + CI e2e job
 
 ## [Unreleased] (assfix 2026-10-14, second full pass)
 
