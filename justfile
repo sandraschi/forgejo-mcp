@@ -37,6 +37,10 @@ lint:
 test:
     uv run pytest tests/
 
+# End-to-end browser tests (Playwright boots backend :11133 + vite :11132 itself)
+e2e:
+    cd web; & "$env:USERPROFILE\.bun\bin\bun.exe" run e2e
+
 # Fleet gates: ruff + pytest + pyright + oxlint (web is JSX, no tsc/biome)
 ci:
     uv run ruff check src/ tests/

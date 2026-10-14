@@ -1,6 +1,6 @@
 # CI for forgejo-mcp (adapted from the fleet template:
 # the web companion is plain JSX + oxlint, so the template's
-# tsc/biome steps are replaced with `npm run lint`).
+# tsc/biome steps are replaced with `bun run lint`).
 name: ci
 on:
   push:
@@ -29,3 +29,18 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run lint
+  e2e:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: uv sync --group dev
+      - run: bun install --frozen-lockfile
+        working-directory: web
+      - run: bunx playwright install chromium
+        working-directory: web
+      - run: bun run e2e
+        working-directory: web

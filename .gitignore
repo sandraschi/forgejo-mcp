@@ -14,6 +14,8 @@ node_modules/
 dist/
 web/dist/
 web/node_modules/
+web/test-results/
+web/playwright-report/
 
 # Local configuration and credentials
 .env
