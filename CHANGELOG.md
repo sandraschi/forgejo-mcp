@@ -32,7 +32,7 @@ Update saved MCP tool calls; REST API is unchanged.
 - Dashboard write UI: New-repo dialog; per-repo Issues (open + comment), Pulls
   (open + diff viewer + two-click merge), Files (path + ref reader) tabs;
   Settings Danger-Zone shutdown; Logs webhook-deliveries tab; 7 write-proxy
-  REST routes with tests; e2e 21/21
+  REST routes with tests; e2e 38/38 (incl. standard-compliant Help tabs)
 - Dashboard hero (live version/ports/status), 5 quick-action shortcuts,
   recent-warnings preview box; e2e 24/24
 - Local Forgejo wired up (Goliath `forgejo` container, profile `local`);

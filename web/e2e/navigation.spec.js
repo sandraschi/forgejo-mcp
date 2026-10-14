@@ -85,10 +85,18 @@ test('shutdown button arms but never fires on one click', async ({ page }) => {
   // Deliberately no second click: the backend running this suite must survive.
 })
 
-test('repositories view gates on missing profile', async ({ page }) => {
+test('repositories view gates on missing profile', async ({ page, request }) => {
   await page.goto('/')
   await page.getByTestId('nav-repositories').click()
-  await expect(page.getByText('Select an active profile in the top bar to view repositories.')).toBeVisible()
+  // Gate tracks live profile state: fresh backends show the gate,
+  // configured ones (e.g. dev machine with a local forge) show the grid.
+  const profiles = await (await request.get('/api/profiles')).json()
+  const hasProfiles = Object.keys(profiles.profiles || {}).length > 0
+  if (hasProfiles) {
+    await expect(page.getByTestId('repo-create-open')).toBeVisible()
+  } else {
+    await expect(page.getByText('Select an active profile in the top bar to view repositories.')).toBeVisible()
+  }
 })
 
 test('profile form rejects empty submission', async ({ page }) => {

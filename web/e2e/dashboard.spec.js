@@ -20,16 +20,26 @@ test('dashboard hero describes the app with live version', async ({ page }) => {
   await expect(hero).toContainText('Codeberg')
 })
 
-test('quick actions navigate without a profile', async ({ page }) => {
+test('quick actions navigate (profile-gated views adapt to backend state)', async ({ page, request }) => {
+  const profiles = await (await request.get('/api/profiles')).json()
+  const hasProfiles = Object.keys(profiles.profiles || {}).length > 0
   await page.goto('/')
   await page.getByTestId('quick-action-inbox').click()
-  await expect(page.getByText('Select an active profile in the top bar to read notifications.')).toBeVisible()
+  if (hasProfiles) {
+    await expect(page.getByTestId('search-inbox')).toBeVisible()
+  } else {
+    await expect(page.getByText('Select an active profile in the top bar to read notifications.')).toBeVisible()
+  }
   await page.getByTestId('nav-dashboard').click()
   await page.getByTestId('quick-action-chat').click()
   await expect(page.getByTestId('chat-page')).toBeVisible()
   await page.getByTestId('nav-dashboard').click()
   await page.getByTestId('quick-action-repos').click()
-  await expect(page.getByText('Select an active profile in the top bar to view repositories.')).toBeVisible()
+  if (hasProfiles) {
+    await expect(page.getByTestId('repo-create-open')).toBeVisible()
+  } else {
+    await expect(page.getByText('Select an active profile in the top bar to view repositories.')).toBeVisible()
+  }
 })
 
 test('recent warnings box links to the logs page', async ({ page }) => {

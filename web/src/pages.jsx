@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
-  BookOpen,
   Cpu,
   Download,
   Inbox,
@@ -13,8 +12,7 @@ import {
   Settings as SettingsIcon,
   Sparkles,
   Trash2,
-  Webhook,
-  Wrench
+  Webhook
 } from 'lucide-react'
 import { useAppStore } from './store'
 
@@ -612,76 +610,336 @@ function ShutdownCard() {
   )
 }
 
-// ── Help ─────────────────────────────────────────────────────────────────────
+// ── Help (WEBAPP_HELP_STANDARD: tab bar, 5 mandatory tabs + domain tabs) ─────
+
+const HELP_TABS = [
+  { id: 'overview', label: 'Overview', description: 'What this app is and where everything lives' },
+  { id: 'wrappee', label: 'Forgejo instances', description: 'The forges this server talks to' },
+  { id: 'api', label: 'API & ports', description: 'Ports, env vars, endpoints, restarts' },
+  { id: 'troubleshoot', label: 'Troubleshooting', description: 'Dated error-fix entries' },
+  { id: 'faq', label: 'FAQ', description: 'Real questions from users' },
+  { id: 'mcp', label: 'MCP tools', description: 'The 7 portmanteau tools' },
+  { id: 'chat', label: 'Chat & LLM', description: 'Local chat and providers' }
+]
+
+const PAGE_MAP = [
+  ['Dashboard', 'Hero, KPIs, quick actions, instance health, recent warnings'],
+  ['Inbox', 'Notification threads, unread/all filter, search'],
+  ['Profiles', 'Instance CRUD plus the dual-path onboarding panel'],
+  ['Repositories', 'Browser, New-repo dialog, drill-down: Overview / Issues / Pulls / Files'],
+  ['Actions Runners', 'Agent cards with status, labels, versions'],
+  ['Tools', 'Live capability cards from /api/capabilities'],
+  ['Skills', 'Companion skill plus the triage prompt text'],
+  ['Chat', 'Streaming local-LLM chat, 4 personalities, persisted history'],
+  ['Settings', 'Service status, LLM provider/model selects, Danger-Zone shutdown'],
+  ['Logs', 'Server ring buffer plus webhook-deliveries tab'],
+  ['Help', 'This page'],
+  ['API Docs', 'Embedded Swagger UI']
+]
+
+const TROUBLESHOOTING = [
+  {
+    symptom: 'ReferenceError: VERSION is not defined (sidebar + docs buttons dead)',
+    cause: 'Fixed 2026-10-14: App.jsx referenced undefined VERSION/WEB_PORT globals.',
+    fix: 'APP_VERSION const plus same-origin /docs links; assert hero text in e2e.'
+  },
+  {
+    symptom: 'CI web job fails on npm ci / ENOENT package-lock.json',
+    cause: 'Fixed 2026-10-14: bun.lock repo was built with an npm job.',
+    fix: 'oven-sh/setup-bun plus bun install --frozen-lockfile; just ci uses the bun path.'
+  },
+  {
+    symptom: 'MCP_TRANSPORT=http serves nothing; client hangs on stdin',
+    cause: 'Fixed 2026-10-14: bare mcp.run() is always stdio regardless of env.',
+    fix: 'Explicit mcp.run(transport="http", host, port) with MCP_PORT override; verified with a real MCP handshake (406).'
+  },
+  {
+    symptom: '401 on every API call',
+    cause: 'Expired or revoked PAT, or wrong instance URL on the profile.',
+    fix: 'Regenerate the token on the instance, re-add the profile (same slug overwrites), verify with a 5-item repo list.'
+  },
+  {
+    symptom: 'No active profile on every tool call',
+    cause: 'Registry empty, or the named profile does not exist.',
+    fix: 'forgejo_profiles action list, then add (first profile auto-activates) or set_active.'
+  },
+  {
+    symptom: 'Chat: No model selected / Empty reply from provider',
+    cause: 'Local provider down, or a hand-typed model name that is not loaded.',
+    fix: 'Start Ollama (:11434) or LM Studio (:1234), Rescan in Settings, pick from GET /api/llm/discover — never type model names freehand.'
+  },
+  {
+    symptom: 'Webhook 403 Bad signature / 503 receiver disabled',
+    cause: '403: secret mismatch between Forgejo settings and server env. 503: FORGEJO_WEBHOOK_SECRET unset.',
+    fix: 'Align the secret (re-copy, do not retype), set the env var, restart the backend.'
+  },
+  {
+    symptom: 'Playwright: Error: No tests found',
+    cause: 'Seen 2026-10-14: suite launched from the repo root instead of web/, so no config applied.',
+    fix: 'Run e2e from web/ (bun run e2e) or just e2e; never from the repo root.'
+  }
+]
+
+const FAQ = [
+  {
+    q: 'Local vs cloud forge — what is the difference?',
+    a: 'Local means Forgejo running on your own hardware (here: Goliath docker on :11243) — private, offline-capable, you maintain it. Cloud means Codeberg.org — free signup, zero setup, your code lives on their servers. A profile is just URL plus token; the same tools work against both.'
+  },
+  {
+    q: 'How do I actually use this?',
+    a: 'Three paths: ask Claude (full tool surface), use the dashboard (browse, monitor, and now write issues/PRs/repos), or Chat for drafting against a local model. All three need at least one profile with a token first.'
+  },
+  {
+    q: 'Does the dashboard cover everything?',
+    a: 'Yes since the write-UI pass: repo create, issue/PR open-comment-merge-diff, file reading, shutdown, and webhook deliveries all have UI, each e2e-covered. Chat drafts but never executes tools — acting stays with the agent.'
+  },
+  {
+    q: 'Where is my data?',
+    a: 'Profiles and tokens: .env.profiles.json at the repo root (gitignored, back it up like a secret). Repositories: the forge itself (local docker volume forgejo_forgejo-data, or Codeberg). Chat history and LLM selects: browser localStorage.'
+  },
+  {
+    q: 'How do I add another forge?',
+    a: 'Profiles page onboarding panel (probes the URL live), or forgejo_profiles action add with name, url, token, label. First profile auto-activates.'
+  },
+  {
+    q: 'How do clients connect?',
+    a: 'Claude Desktop: the releases one-liner (README). Others (Cursor, VS Code, Claude Code): the uvx JSON snippet in the README install section.'
+  },
+  {
+    q: 'What restarts after a code change?',
+    a: 'The backend: stop and rerun start.ps1 (orderly POST /api/shutdown first). There is no NSSM service and no file watcher for this repo. Vite hot-reloads the frontend in dev.'
+  },
+  {
+    q: 'Where are the logs?',
+    a: 'Logs page queries the server ring buffer (level, search, autorefresh); webhook deliveries have their own tab. MCP stderr lands in the Claude Desktop log directory.'
+  },
+  {
+    q: 'How do I rebuild or resync everything?',
+    a: 'Backend: uv sync then restart. Profiles: re-list from the dashboard. UI contract: bun run e2e in web/. Full gates: just ci from the repo root.'
+  }
+]
 
 export function HelpPage() {
+  const [tab, setTab] = useState('overview')
+  const [fixQuery, setFixQuery] = useState('')
+  const [faqQuery, setFaqQuery] = useState('')
+  const [openFaq, setOpenFaq] = useState(null)
+
+  const fixes = TROUBLESHOOTING.filter(
+    (e) =>
+      !fixQuery ||
+      `${e.symptom} ${e.cause} ${e.fix}`.toLowerCase().includes(fixQuery.toLowerCase())
+  )
+  const faqs = FAQ.filter(
+    (e) =>
+      !faqQuery || `${e.q} ${e.a}`.toLowerCase().includes(faqQuery.toLowerCase())
+  )
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <h3 className="font-semibold text-sm tracking-wider text-surface-300">HELP</h3>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
-          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-primary-500" /> GETTING STARTED
-          </h4>
-          <ol className="text-sm text-surface-400 space-y-2 list-decimal list-inside">
-            <li>Create a personal access token on your Forgejo/Codeberg instance (repo + issue scopes).</li>
-            <li>Open Profiles and register the instance URL + token, then activate it.</li>
-            <li>Browse Repositories, check Actions Runners, read the Inbox.</li>
-            <li>Ask the Chat page to triage issues or review PR diffs.</li>
-          </ol>
-          <p className="text-sm text-surface-500">
-            Full onboarding notes: <code className="text-surface-300">docs/ONBOARDING.md</code> in the repo.
-            This server speaks Forgejo/Gitea API — for GitHub.com use git-github-mcp.
+
+      <div data-testid="help-tabs" className="flex items-center gap-1 border-b border-surface-800 overflow-x-auto">
+        {HELP_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            data-testid={`help-tab-${t.id}`}
+            title={t.description}
+            className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              tab === t.id
+                ? 'border-primary-500 text-surface-100'
+                : 'border-transparent text-surface-500 hover:text-surface-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400 leading-relaxed">
+            forgejo-mcp connects Claude and this dashboard to Forgejo and Codeberg Git forges:
+            multi-profile instances, repositories, issues, pull requests, Actions runners, inbox,
+            and local-LLM chat. It never touches GitHub.com — that is git-github-mcp.
           </p>
+          <dl className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="bg-surface-900 border border-surface-800 rounded-xl p-4">
+              <dt className="text-surface-500 font-medium">UI</dt>
+              <dd className="text-surface-200 font-mono mt-1">:11132 (Vite dev, or served by backend)</dd>
+            </div>
+            <div className="bg-surface-900 border border-surface-800 rounded-xl p-4">
+              <dt className="text-surface-500 font-medium">API + MCP</dt>
+              <dd className="text-surface-200 font-mono mt-1">:11133 (/api/*, /mcp, /docs)</dd>
+            </div>
+            <div className="bg-surface-900 border border-surface-800 rounded-xl p-4">
+              <dt className="text-surface-500 font-medium">Daemon</dt>
+              <dd className="text-surface-200 font-mono mt-1">python -m forgejo_mcp (no NSSM service)</dd>
+            </div>
+          </dl>
+          <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-2">
+            <h4 className="font-semibold text-sm text-surface-300">PAGE MAP</h4>
+            {PAGE_MAP.map(([name, purpose]) => (
+              <div key={name} className="flex gap-3 text-sm">
+                <span className="text-surface-200 font-medium w-32 shrink-0">{name}</span>
+                <span className="text-surface-500">{purpose}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
-          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-            <Wrench className="h-4 w-4 text-primary-500" /> MCP QUICK REFERENCE
-          </h4>
+      )}
+
+      {tab === 'wrappee' && (
+        <div className="space-y-4 text-sm">
+          <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
+            <h4 className="font-semibold text-sm text-surface-300">THE FORGES</h4>
+            <dl className="space-y-2">
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Software</dt>
+                <dd className="text-surface-300">Forgejo (Gitea-family API); any recent release works — local runs the pinned docker image, Codeberg tracks stable.</dd>
+              </div>
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Where it runs</dt>
+                <dd className="text-surface-300">Local: Goliath docker, web/API on 127.0.0.1:11243, SSH on :11244, data in the forgejo_forgejo-data volume. Cloud: your Codeberg.org account.</dd>
+              </div>
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Headless vs GUI</dt>
+                <dd className="text-surface-300">API-driven service, no GUI needed: agents and the dashboard do everything through the API. The Forgejo web UI is only for admin and token creation.</dd>
+              </div>
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Division of labor</dt>
+                <dd className="text-surface-300">This server: profiles, repos, issues, PRs, runners, inbox, chat. Forgejo UI: user admin, token issuance, webhook secrets, server upgrades.</dd>
+              </div>
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Onboarding doc</dt>
+                <dd className="text-surface-300"><code>docs/ONBOARDING.md</code> in the repo (instance matrix, costs, pitfalls).</dd>
+              </div>
+              <div className="flex flex-col md:flex-row md:gap-3">
+                <dt className="text-surface-500 font-medium w-40 shrink-0">Verify reachability</dt>
+                <dd className="text-surface-300">Profiles page onboarding probe (live version check), dashboard health dot, GET /api/status.</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      )}
+
+      {tab === 'api' && (
+        <div className="space-y-4 text-sm">
+          <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-2">
+            <h4 className="font-semibold text-sm text-surface-300">PORTS (fleet registry)</h4>
+            {[
+              ['11132', 'forgejo-mcp frontend (Vite React companion)'],
+              ['11133', 'forgejo-mcp backend (FastAPI + FastMCP /mcp)'],
+              ['11243', 'local Forgejo web UI + API (docker, 127.0.0.1 only)'],
+              ['11244', 'local Forgejo git SSH (docker, 127.0.0.1 only)']
+            ].map(([port, owner]) => (
+              <div key={port} className="flex gap-3">
+                <code className="text-primary-400 font-mono w-16 shrink-0">:{port}</code>
+                <span className="text-surface-400">{owner}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-2">
+            <h4 className="font-semibold text-sm text-surface-300">ENV VARS</h4>
+            {[
+              ['FORGEJO_URL / FORGEJO_TOKEN / FORGEJO_LABEL', 'Seed the env-default profile; unset means no ambient profile.'],
+              ['WEB_HOST / WEB_PORT', 'Backend bind; defaults 127.0.0.1:11133.'],
+              ['MCP_TRANSPORT', 'stdio (Claude Desktop) or http (network clients).'],
+              ['MCP_PORT', 'Override for the HTTP transport (pack sandbox probes it); unset keeps WEB_PORT.'],
+              ['FORGEJO_WEBHOOK_SECRET', 'Shared webhook secret; unset disables the receiver (503).']
+            ].map(([name, effect]) => (
+              <div key={name} className="flex flex-col md:flex-row md:gap-3">
+                <code className="text-primary-400 font-mono md:w-72 shrink-0 break-words">{name}</code>
+                <span className="text-surface-400">{effect}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-2">
+            <h4 className="font-semibold text-sm text-surface-300">KEY ENDPOINTS (all live)</h4>
+            <p className="text-surface-500">/health · /api/status · /api/capabilities · /api/skills · /api/logs · /api/notifications · /api/profiles · /api/repos · /api/issues · /api/pulls · /api/pulls/diff · /api/file · /api/runners · /api/workflows · /api/webhooks/forgejo · /api/webhooks/events · /api/llm/discover · /api/llm/models · /api/llm/chat/stream · /api/shutdown · /api/forgejo/ping · /mcp · /docs</p>
+            <h4 className="font-semibold text-sm text-surface-300 pt-2">START / RESTART</h4>
+            <p className="text-surface-400">Start: <code className="text-surface-300">.\start.ps1</code> (or the fleet launcher bat). Restart: POST /api/shutdown (orderly ~500 ms exit), then start again. There is no NSSM service for this repo — never taskkill a child process; relaunch the process itself and confirm the health endpoint answers.</p>
+          </div>
+        </div>
+      )}
+
+      {tab === 'troubleshoot' && (
+        <div className="space-y-3">
+          <input
+            value={fixQuery}
+            onChange={(e) => setFixQuery(e.target.value)}
+            placeholder="Filter fixes (try: 401, shutdown, http...)"
+            data-testid="help-search"
+            className="w-full bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+          />
+          <div data-testid="help-fixes" className="space-y-3">
+            {fixes.map((e, i) => (
+              <div key={i} className="bg-surface-900 border border-surface-800 rounded-xl p-4 space-y-1.5 text-sm">
+                <div className="font-medium text-surface-200 break-words">Symptom: {e.symptom}</div>
+                <div className="text-surface-400 break-words">Cause: {e.cause}</div>
+                <div className="text-surface-300 break-words">Fix: {e.fix}</div>
+              </div>
+            ))}
+            {fixes.length === 0 && <EmptyRow text={`No fixes match "${fixQuery}".`} />}
+          </div>
+        </div>
+      )}
+
+      {tab === 'faq' && (
+        <div className="space-y-3">
+          <input
+            value={faqQuery}
+            onChange={(e) => setFaqQuery(e.target.value)}
+            placeholder="Filter questions (try: logs, profile, restart...)"
+            data-testid="help-search-faq"
+            className="w-full bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+          />
+          <div data-testid="help-faq" className="space-y-2">
+            {faqs.map((e, i) => (
+              <div key={i} data-testid="faq-item" className="bg-surface-900 border border-surface-800 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full text-left px-4 py-3 text-sm font-medium text-surface-200 hover:bg-surface-800/50 transition-colors"
+                >
+                  {e.q}
+                </button>
+                {openFaq === i && (
+                  <div className="px-4 pb-3 text-sm text-surface-400 leading-relaxed">{e.a}</div>
+                )}
+              </div>
+            ))}
+            {faqs.length === 0 && <EmptyRow text={`No questions match "${faqQuery}".`} />}
+          </div>
+        </div>
+      )}
+
+      {tab === 'mcp' && (
+        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-2">
+          <h4 className="font-semibold text-sm text-surface-300">MCP QUICK REFERENCE (v0.2.0, all dialogic)</h4>
           <ul className="text-sm text-surface-400 space-y-2">
             <li><code className="text-primary-400">forgejo_profiles</code> — list/add/set_active/remove instances.</li>
             <li><code className="text-primary-400">forgejo_repos</code> — list/create/search repos, file_get contents.</li>
             <li><code className="text-primary-400">forgejo_issues</code> — list/create issues, comment on issues + PRs.</li>
             <li><code className="text-primary-400">forgejo_prs</code> — list/create/merge/diff pull requests.</li>
             <li><code className="text-primary-400">forgejo_actions</code> — runners/workflow_runs/notifications.</li>
-            <li><code className="text-primary-400">forgejo_status</code> — health snapshot. All tools return dialogic dicts.</li>
+            <li><code className="text-primary-400">forgejo_status</code> — health snapshot. Resource <code className="text-primary-400">forgejo://profiles</code>, prompt <code className="text-primary-400">forgejo-triage</code>.</li>
           </ul>
         </div>
+      )}
+
+      {tab === 'chat' && (
         <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
-          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-            <Wrench className="h-4 w-4 text-primary-500" /> WRITING FROM THE DASHBOARD
-          </h4>
-          <ul className="text-sm text-surface-400 space-y-2">
-            <li>Repositories header: <strong className="text-surface-200">New</strong> opens the create dialog (private by default).</li>
-            <li>Drill-down tabs per repo: <strong className="text-surface-200">Issues</strong> (state filter, open + comment), <strong className="text-surface-200">Pulls</strong> (open, diff viewer, style select, two-click merge), <strong className="text-surface-200">Files</strong> (path + ref reader).</li>
-            <li>Merges and shutdowns are two-click: first click arms, second fires. Nothing mutates on a single stray click.</li>
-            <li>Settings bottom: Danger Zone stops the backend (orderly exit, restart via start.ps1).</li>
-            <li>Logs page, Webhook deliveries tab: the last 50 signed inbound events (configure secret via FORGEJO_WEBHOOK_SECRET).</li>
-          </ul>
-        </div>
-        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
-          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary-500" /> CHAT + LOCAL LLM
-          </h4>
+          <h4 className="font-semibold text-sm text-surface-300">CHAT + LOCAL LLM</h4>
           <p className="text-sm text-surface-400">
             The Chat page proxies Ollama (:11434) or LM Studio (:1234) through the backend —
             nothing is sent to the cloud. Pick a provider + model in Settings or Chat, choose a
             personality (Triage, PR Reviewer, Release Notes, Custom), and stream answers.
-            History persists locally (100 message cap) and exports to .txt.
+            History persists locally (100 message cap) and exports to .txt. The chat model
+            drafts and explains; it never executes MCP tools — acting stays with the agent.
           </p>
         </div>
-        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
-          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-primary-500" /> TROUBLESHOOTING
-          </h4>
-          <ul className="text-sm text-surface-400 space-y-2">
-            <li>401s everywhere → expired PAT or wrong forge URL; re-add the profile.</li>
-            <li>Empty repos/runners → token lacks scopes, or the instance URL is wrong.</li>
-            <li>Chat reports no model → start Ollama/LM Studio, then Rescan in Settings.</li>
-            <li>Backend unreachable → <code className="text-surface-300">.\start.ps1</code>, then check <code className="text-surface-300">/health</code> on :11133.</li>
-          </ul>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
