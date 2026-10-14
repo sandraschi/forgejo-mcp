@@ -26,6 +26,11 @@ import { useAppStore } from './store'
 // choice survives reloads. Delete this + the CSS block to revert.
 const THEME_KEY = 'forgejo-light-mode'
 
+// Webapp constants: backend version/docs are served same-origin via the vite
+// proxy (see vite.config.js), so docs links stay relative and work from any host.
+const APP_VERSION = '0.1.0'
+const DOCS_PATH = '/docs'
+
 export default function App() {
   const [light, setLight] = useState(() => {
     try {
@@ -173,7 +178,7 @@ export default function App() {
         <div className="p-4 border-t border-surface-800 text-xs text-surface-500 shrink-0">
           {!sidebarCollapsed && (
             <div className="flex flex-col gap-1">
-              <div>Version {VERSION}</div>
+              <div>Version {APP_VERSION}</div>
               <div className="flex items-center gap-1.5">
                 <span className={`h-2.5 w-2.5 rounded-full ${activeProfile ? 'bg-green-500' : 'bg-red-500 animate-ping'}`} />
                 <span>{activeProfile ? 'Connected' : 'Disconnected'}</span>
@@ -244,7 +249,7 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => window.open(`http://localhost:${WEB_PORT}/docs`, '_blank')}
+              onClick={() => window.open(DOCS_PATH, '_blank')}
               className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-400 hover:text-surface-100 transition-colors"
               title="Pop Out API Docs"
             >
@@ -713,10 +718,10 @@ export default function App() {
               <div className="p-4 border-b border-surface-800 bg-surface-850 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2 text-xs text-surface-400">
                   <BookOpen className="h-4 w-4 text-primary-500" />
-                  <span>FastAPI Swagger Introspection (Port 10761)</span>
+                   <span>FastAPI Swagger Introspection (Backend :11133)</span>
                 </div>
                 <button
-                  onClick={() => window.open(`http://localhost:${WEB_PORT}/docs`, '_blank')}
+                  onClick={() => window.open(DOCS_PATH, '_blank')}
                   className="text-xs text-primary-500 hover:text-primary-400 font-semibold inline-flex items-center gap-1.5"
                 >
                   Open in New Tab <ExternalLink className="h-3 w-3" />
