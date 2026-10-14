@@ -60,6 +60,30 @@ test('logs page renders level filter and refresh', async ({ page }) => {
   await expect(page.getByTestId('logs-refresh')).toBeVisible()
 })
 
+test('logs webhooks tab lists deliveries (empty state without secret traffic)', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-logs').click()
+  await page.getByTestId('logs-tab-webhooks').click()
+  await expect(page.getByText('No webhook deliveries yet.')).toBeVisible()
+})
+
+test('shutdown button arms but never fires on one click', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-settings').click()
+  const button = page.getByTestId('shutdown-backend')
+  await expect(button).toBeVisible()
+  await expect(button).toContainText('Shut down backend')
+  await button.click()
+  await expect(button).toContainText('Click again to confirm shutdown')
+  // Deliberately no second click: the backend running this suite must survive.
+})
+
+test('repositories view gates on missing profile', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-repositories').click()
+  await expect(page.getByText('Select an active profile in the top bar to view repositories.')).toBeVisible()
+})
+
 test('profile form rejects empty submission', async ({ page }) => {
   await page.goto('/')
   await page.getByTestId('nav-profiles').click()

@@ -29,6 +29,10 @@ Update saved MCP tool calls; REST API is unchanged.
   always stdio) — now explicit `transport="http"` with `MCP_PORT` override
 - Inbound webhook receiver `POST /api/webhooks/forgejo` (HMAC-SHA256,
   `FORGEJO_WEBHOOK_SECRET`) + `GET /api/webhooks/events` delivery log
+- Dashboard write UI: New-repo dialog; per-repo Issues (open + comment), Pulls
+  (open + diff viewer + two-click merge), Files (path + ref reader) tabs;
+  Settings Danger-Zone shutdown; Logs webhook-deliveries tab; 7 write-proxy
+  REST routes with tests; e2e 21/21
 - Saved-call refresh: mirror project pages (mcp-central-docs, documentation-mcp),
   versions aligned (`__init__`, plugin, sidebar), `just ci` via bun, web README
 
