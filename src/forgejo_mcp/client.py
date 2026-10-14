@@ -83,7 +83,7 @@ class ProfileRegistry:
                 if active and active in self.profiles:
                     self.active_profile_name = active
             except Exception as e:
-                logger.error(f"Failed to load profiles file: {e}")
+                logger.exception(f"Failed to load profiles file: {e}")
 
         # Set default active if none set
         if not self.active_profile_name and self.profiles:
@@ -106,7 +106,7 @@ class ProfileRegistry:
             with open(self.profiles_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
-            logger.error(f"Failed to save profiles file: {e}")
+            logger.exception(f"Failed to save profiles file: {e}")
 
     def add_profile(self, name: str, url: str, token: str, label: str) -> None:
         profile = ForgejoProfile(name=name, url=url, token=token, label=label)

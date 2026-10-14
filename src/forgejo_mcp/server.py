@@ -4,15 +4,19 @@ Provides tools, resources, and prompts for Forgejo/Codeberg repository managemen
 """
 
 import asyncio
+import json
 import logging
 import os
 import threading
+import time
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import Context, FastMCP
+from pydantic import Field
 
 from .client import get_client, registry
 
@@ -23,6 +27,13 @@ logger = logging.getLogger("forgejo-mcp.server")
 VERSION = "0.1.0"
 WEB_PORT = int(os.getenv("WEB_PORT", "11133"))
 WEB_HOST = os.getenv("WEB_HOST", "127.0.0.1")
+START_TIME = time.time()
+
+
+def _error_response(operation: str, error: Exception | str) -> dict:
+    """Shared dialogic error helper with auto-logging (TOOL_DESIGN_STANDARDS §7.1 Pattern 3)."""
+    logger.exception(f"forgejo-mcp error in {operation}: {error}")
+    return {"success": False, "message": f"{operation} failed: {error}", "data": None}
 
 
 @asynccontextmanager
@@ -48,7 +59,10 @@ mcp = FastMCP(
 # ── Profiles Management Tools ──────────────────────────────────────────────────
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
+@mcp.tool(
+    app=True,
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+)
 async def forgejo_profile_list(ctx: Context | None = None) -> str:
     """List all configured connection profiles for Forgejo/Codeberg.
 
@@ -79,14 +93,14 @@ async def forgejo_profile_list(ctx: Context | None = None) -> str:
 @mcp.tool(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
-async def forgejo_profile_add(name: str, url: str, token: str, label: str, ctx: Context | None = None) -> str:
+async def forgejo_profile_add(
+    name: Annotated[str, Field(description="Unique identifier slug (e.g. 'codeberg-personal').")],
+    url: Annotated[str, Field(description="Base URL of the instance (e.g. 'https://codeberg.org').")],
+    token: Annotated[str, Field(description="Personal Access Token generated on the instance.")],
+    label: Annotated[str, Field(description="User-friendly display name.")],
+    ctx: Context | None = None,
+) -> str:
     """Add a new connection profile for a Forgejo/Codeberg instance.
-
-    Args:
-        name: A unique identifier slug (e.g., 'codeberg-personal', 'local-admin').
-        url: The base URL of the instance (e.g., 'https://codeberg.org', 'http://localhost:3000').
-        token: The Personal Access Token generated on the instance.
-        label: A user-friendly display name.
 
     ## Return Format
     Confirmation string (or `Error adding profile: ...` string)
@@ -100,17 +114,18 @@ async def forgejo_profile_add(name: str, url: str, token: str, label: str, ctx: 
         registry.add_profile(name, url, token, label)
         return f"Successfully added profile '{label}' (`{name}`). Current active: '{registry.active_profile_name}'"
     except Exception as e:
+        logger.exception(f"forgejo-mcp error in forgejo_profile_add: {e}")
         return f"Error adding profile: {e}"
 
 
 @mcp.tool(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
-async def forgejo_profile_set_active(name: str, ctx: Context | None = None) -> str:
+async def forgejo_profile_set_active(
+    name: Annotated[str, Field(description="Name of the profile to activate.")],
+    ctx: Context | None = None,
+) -> str:
     """Set a profile as the active default for subsequent actions.
-
-    Args:
-        name: The name of the profile to activate.
 
     ## Return Format
     Confirmation string
@@ -130,14 +145,12 @@ async def forgejo_profile_set_active(name: str, ctx: Context | None = None) -> s
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_repo_list(
-    profile: str | None = None, page: int = 1, limit: int = 50, ctx: Context | None = None
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    page: Annotated[int, Field(description="Page number for pagination.", ge=1)] = 1,
+    limit: Annotated[int, Field(description="Items per page.", ge=1, le=100)] = 50,
+    ctx: Context | None = None,
 ) -> str:
     """List repositories that the user has access to for a profile.
-
-    Args:
-        profile: The name of the profile to use (default: active profile).
-        page: Page number for pagination.
-        limit: Number of items per page.
 
     ## Return Format
     Markdown string (repo list, or `Error: ...` string)
@@ -173,15 +186,13 @@ async def forgejo_repo_list(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
 async def forgejo_repo_create(
-    name: str, description: str = "", private: bool = True, profile: str | None = None, ctx: Context | None = None
+    name: Annotated[str, Field(description="Repository name.")],
+    description: Annotated[str, Field(description="Repository description.")] = "",
+    private: Annotated[bool, Field(description="Whether the repository should be private.")] = True,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Create a new repository under the user account.
-
-    Args:
-        name: Repository name.
-        description: Description of the repository.
-        private: Whether the repository should be private.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (created repo summary, or `Error: ...` string)
@@ -211,15 +222,13 @@ async def forgejo_repo_create(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_repo_search(
-    query: str, page: int = 1, limit: int = 20, profile: str | None = None, ctx: Context | None = None
+    query: Annotated[str, Field(description="Search query string.")],
+    page: Annotated[int, Field(description="Page number for pagination.", ge=1)] = 1,
+    limit: Annotated[int, Field(description="Items per page.", ge=1, le=50)] = 20,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Search for repositories on the selected instance.
-
-    Args:
-        query: Query string.
-        page: Page number for pagination.
-        limit: Number of items per page.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (search results, or `Error searching: ...` string)
@@ -258,23 +267,15 @@ async def forgejo_repo_search(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_issue_list(
-    owner: str,
-    repo: str,
-    state: str = "open",
-    page: int = 1,
-    limit: int = 20,
-    profile: str | None = None,
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    state: Annotated[str, Field(description="Issue state filter: open, closed, or all.")] = "open",
+    page: Annotated[int, Field(description="Page number for pagination.", ge=1)] = 1,
+    limit: Annotated[int, Field(description="Items per page.", ge=1, le=50)] = 20,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
     ctx: Context | None = None,
 ) -> str:
     """List issues for a specific repository.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        state: State of the issues (open, closed, all).
-        page: Page number for pagination.
-        limit: Number of items per page.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (issue list, or `Error fetching issues: ...` string)
@@ -308,16 +309,14 @@ async def forgejo_issue_list(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
 async def forgejo_issue_create(
-    owner: str, repo: str, title: str, body: str = "", profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    title: Annotated[str, Field(description="Issue title.")],
+    body: Annotated[str, Field(description="Markdown body of the issue.")] = "",
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Create a new issue in a repository.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        title: Issue title.
-        body: Markdown body description of the issue.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (created issue summary, or `Error: ...` string)
@@ -347,16 +346,14 @@ async def forgejo_issue_create(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
 async def forgejo_issue_comment(
-    owner: str, repo: str, index: int, body: str, profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    index: Annotated[int, Field(description="Issue/PR number.", ge=1)],
+    body: Annotated[str, Field(description="Markdown comment body.")],
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Comment on an existing issue or pull request.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        index: Issue/PR number.
-        body: Markdown comment body.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Confirmation string (or `Error: ...` string)
@@ -383,23 +380,15 @@ async def forgejo_issue_comment(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_pr_list(
-    owner: str,
-    repo: str,
-    state: str = "open",
-    page: int = 1,
-    limit: int = 20,
-    profile: str | None = None,
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    state: Annotated[str, Field(description="PR state filter: open, closed, or all.")] = "open",
+    page: Annotated[int, Field(description="Page number for pagination.", ge=1)] = 1,
+    limit: Annotated[int, Field(description="Items per page.", ge=1, le=50)] = 20,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
     ctx: Context | None = None,
 ) -> str:
     """List pull requests in a repository.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        state: State of the PRs (open, closed, all).
-        page: Page for pagination.
-        limit: Number of items per page.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (PR list, or `Error fetching PRs: ...` string)
@@ -434,25 +423,16 @@ async def forgejo_pr_list(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
 async def forgejo_pr_create(
-    owner: str,
-    repo: str,
-    title: str,
-    head: str,
-    base: str,
-    body: str = "",
-    profile: str | None = None,
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    title: Annotated[str, Field(description="PR title.")],
+    head: Annotated[str, Field(description="Branch with the changes (e.g. 'feature-branch').")],
+    base: Annotated[str, Field(description="Target branch to merge into (e.g. 'main').")],
+    body: Annotated[str, Field(description="Markdown description of the PR changes.")] = "",
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
     ctx: Context | None = None,
 ) -> str:
     """Open a new pull request.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        title: PR title.
-        head: The name of the branch containing the changes (e.g. 'feature-branch').
-        base: The target branch to merge into (e.g. 'main').
-        body: Markdown description of the PR changes.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (opened PR summary, or `Error: ...` string)
@@ -483,16 +463,14 @@ async def forgejo_pr_create(
     annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
 )
 async def forgejo_pr_merge(
-    owner: str, repo: str, index: int, style: str = "merge", profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    index: Annotated[int, Field(description="PR index number.", ge=1)],
+    style: Annotated[str, Field(description="Merge strategy: merge, rebase, or squash.")] = "merge",
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Merge a pull request.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        index: PR index number.
-        style: Merge strategy (merge, rebase, squash).
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Confirmation string (or `Error: ...` string)
@@ -515,15 +493,13 @@ async def forgejo_pr_merge(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_pr_diff(
-    owner: str, repo: str, index: int, profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    index: Annotated[int, Field(description="PR number.", ge=1)],
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Get the raw diff format of a Pull Request to review changes.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        index: PR number.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Diff text in a ```diff block (or `Error: ...` string)
@@ -553,14 +529,12 @@ async def forgejo_pr_diff(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_runner_list(
-    owner: str | None = None, repo: str | None = None, profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str | None, Field(description="Repo owner for repo-scoped runners.")] = None,
+    repo: Annotated[str | None, Field(description="Repo name for repo-scoped runners.")] = None,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """List connected Actions runners (requires admin for global, or repo parameters for repo runners).
-
-    Args:
-        owner: Optional repository owner (e.g. for repo-scoped runner search).
-        repo: Optional repository name (e.g. for repo-scoped runner search).
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (runner list, or `Error: ...` string)
@@ -592,16 +566,14 @@ async def forgejo_runner_list(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_workflow_runs(
-    owner: str, repo: str, page: int = 1, limit: int = 20, profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    page: Annotated[int, Field(description="Page number for pagination.", ge=1)] = 1,
+    limit: Annotated[int, Field(description="Items per page.", ge=1, le=50)] = 20,
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Get active/historical Forgejo Actions runs for a repository.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        page: Page for pagination.
-        limit: Number of items per page.
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Markdown string (workflow runs, or `Error: ...` string)
@@ -645,16 +617,14 @@ async def forgejo_workflow_runs(
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def forgejo_file_get(
-    owner: str, repo: str, filepath: str, ref: str = "main", profile: str | None = None, ctx: Context | None = None
+    owner: Annotated[str, Field(description="Repository owner.")],
+    repo: Annotated[str, Field(description="Repository name.")],
+    filepath: Annotated[str, Field(description="Relative file path (e.g. 'README.md').")],
+    ref: Annotated[str, Field(description="Branch, commit SHA, or tag (default: 'main').")] = "main",
+    profile: Annotated[str | None, Field(description="Profile to use (default: active).")] = None,
+    ctx: Context | None = None,
 ) -> str:
     """Read contents of a file directly from a repository branch.
-
-    Args:
-        owner: Repository owner.
-        repo: Repository name.
-        filepath: Relative file path in the repository (e.g. 'README.md', 'src/main.py').
-        ref: The branch, commit SHA, or tag (default: 'main').
-        profile: The profile to use (default: active profile).
 
     ## Return Format
     Raw file contents string (or `Error: ...` string)
@@ -675,8 +645,87 @@ async def forgejo_file_get(
         return f"Error: {e}"
 
 
+@mcp.tool(
+    app=True,
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    output_schema={
+        "type": "object",
+        "properties": {
+            "success": {"type": "boolean"},
+            "message": {"type": "string"},
+            "data": {"type": "object"},
+        },
+        "required": ["success", "message"],
+    },
+)
+async def forgejo_status(ctx: Context | None = None) -> dict:
+    """Report forgejo-mcp health: version, uptime, profiles, and tool inventory.
+
+    ## Return Format
+    Dialogic dict: `{"success": True, "message": <one-line summary>, "data": {...}}`
+
+    ## Examples
+    ```python
+    await call_tool("forgejo_status")
+    ```
+    """
+    try:
+        data = {
+            "service": "forgejo-mcp",
+            "version": VERSION,
+            "uptime_seconds": round(time.time() - START_TIME, 1),
+            "transport": os.getenv("MCP_TRANSPORT", "stdio"),
+            "backend_port": WEB_PORT,
+            "profiles_configured": len(registry.profiles),
+            "active_profile": registry.active_profile_name,
+            "tool_count": 18,
+        }
+        active = registry.active_profile_name or "none"
+        return {
+            "success": True,
+            "message": f"forgejo-mcp v{VERSION} healthy, {len(registry.profiles)} profile(s), active: {active}.",
+            "data": data,
+        }
+    except Exception as e:
+        return _error_response("forgejo_status", e)
+
+
+@mcp.resource("forgejo://profiles")
+async def forgejo_profiles_resource() -> str:
+    """Configured Forgejo/Codeberg profiles (URLs and labels; tokens never exposed).
+
+    ## Return Format
+    JSON string: `{"active_profile": <name|null>, "profiles": {name: {url, label}}}`
+    """
+    payload = {
+        "active_profile": registry.active_profile_name,
+        "profiles": {name: {"url": p.url, "label": p.label} for name, p in registry.profiles.items()},
+    }
+    return json.dumps(payload, indent=2)
+
+
+@mcp.prompt("forgejo-triage")
+def forgejo_triage_prompt() -> str:
+    """Triage template for Forgejo/Codeberg issues and PRs.
+
+    ## Return Format
+    System-prompt string composing profile context with the triage workflow.
+    """
+    return (
+        "You are triaging Forgejo/Codeberg work via forgejo-mcp. "
+        "1) Call forgejo_status (or forgejo_profile_list) to confirm the active profile. "
+        "2) Use forgejo_issue_list / forgejo_pr_list for the target repo. "
+        "3) For a PR, read forgejo_pr_diff before commenting. "
+        "4) Prefer read-only checks (list/search/diff) before create/merge/comment. "
+        "Pass `profile` explicitly when working outside the active profile."
+    )
+
+
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": False})
-async def forgejo_shutdown(confirmed: bool = False, ctx: Context | None = None) -> str:
+async def forgejo_shutdown(
+    confirmed: Annotated[bool, Field(description="Pass true to actually terminate the server.")] = False,
+    ctx: Context | None = None,
+) -> str:
     """Shut down the forgejo-mcp server process.
 
     ## Return Format
@@ -701,7 +750,14 @@ web_app = FastAPI(title="Forgejo MCP Companion WebApp", version=VERSION)
 
 web_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://127.0.0.1:11132",
+        "http://localhost:11132",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.1[6-9]\.\d+\.\d+|172\.2\d\.\d+\.\d+|172\.3[01]\.\d+\.\d+|[a-z0-9-]+\.ts\.net|goliath)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -711,6 +767,42 @@ web_app.add_middleware(
 @web_app.get("/health")
 async def health_check():
     return {"status": "ok", "version": VERSION, "active_profile": registry.active_profile_name}
+
+
+@web_app.get("/api/status")
+async def api_status():
+    """Richer status diagnostics for the fleet launcher and dashboard health dot."""
+    return {
+        "status": "ok",
+        "service": "forgejo-mcp",
+        "version": VERSION,
+        "uptime_seconds": round(time.time() - START_TIME, 1),
+        "active_profile": registry.active_profile_name,
+        "profiles_configured": len(registry.profiles),
+        "tool_count": 18,
+    }
+
+
+@web_app.get("/api/skills")
+async def api_skills():
+    """Skill inventory for skill-first Chat clients."""
+    return {
+        "skills": [
+            {
+                "name": "forgejo-companion",
+                "uri": "skill://forgejo-companion",
+                "description": "Manage Forgejo/Codeberg instances (profiles, repos, issues, PRs, runners).",
+            }
+        ],
+        "prompt": "forgejo-triage",
+    }
+
+
+@web_app.post("/api/shutdown")
+async def api_shutdown():
+    """Orderly exit for the fleet launcher: respond 200 now, exit ~500 ms later."""
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"status": "shutting_down", "message": "forgejo-mcp backend exiting in ~500 ms."}
 
 
 @web_app.get("/api/capabilities")
@@ -734,6 +826,7 @@ async def api_capabilities():
             "forgejo_runner_list",
             "forgejo_workflow_runs",
             "forgejo_file_get",
+            "forgejo_status",
             "forgejo_shutdown",
         ]
     )
@@ -743,7 +836,7 @@ async def api_capabilities():
         "status": "ok",
         "tool_count": len(tool_names),
         "tools": tool_names,
-        "endpoints": ["/health", "/api/capabilities", "/mcp"],
+        "endpoints": ["/health", "/api/status", "/api/capabilities", "/api/skills", "/api/shutdown", "/mcp"],
         "transports": ["http", "stdio"],
     }
 

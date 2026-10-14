@@ -45,5 +45,9 @@ $RECYCLE.BIN/
 *.bak
 *.bak.*
 
+# MCPB distributables (built artifacts, never commit)
+*.mcpb
+
 # Assfix working snapshots (regenerable; committed copy lives in docs/assess-reports/)
 reports/
+!docs/assess-reports/
