@@ -25,7 +25,7 @@ import {
   Wrench
 } from 'lucide-react'
 import { useAppStore } from './store'
-import { ChatPage, HelpPage, InboxPage, LogsPage, NewRepoDialog, RepoDetail, SettingsPage, SkillsPage, ToolsPage } from './pages'
+import { ChatPage, HelpPage, InboxPage, LogsPage, NewRepoDialog, OnboardingPanel, RepoDetail, SettingsPage, SkillsPage, ToolsPage } from './pages'
 
 // EXPERIMENTAL light mode (invert hack). Not fleet standard - see index.css.
 // Toggling `.dark` off the root flips the invert filter; persisted so the
@@ -489,7 +489,9 @@ export default function App() {
 
           {/* Profiles Page */}
           {activeView === 'profiles' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
+              <OnboardingPanel />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
               {/* Configured Profiles list */}
               <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg lg:col-span-2 space-y-4">
@@ -631,6 +633,7 @@ export default function App() {
                   </button>
                 </form>
               </div>
+            </div>
             </div>
           )}
 

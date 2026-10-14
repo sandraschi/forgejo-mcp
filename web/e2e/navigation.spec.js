@@ -44,13 +44,20 @@ test('chat page shows skill-first controls and examples', async ({ page }) => {
   await expect(page.getByTestId('chat-input')).toBeVisible()
 })
 
-test('settings shows service status and onboarding cue without profiles', async ({ page }) => {
+test('settings shows service status and onboarding cue without profiles', async ({ page, request }) => {
   await page.goto('/')
   await page.getByTestId('nav-settings').click()
   await expect(page.getByTestId('llm-provider-select')).toBeVisible()
   await expect(page.getByTestId('llm-model-select')).toBeVisible()
-  // Fresh backend has no profiles: the onboarding cue must appear
-  await expect(page.getByTestId('onboarding-cue')).toBeVisible()
+  // Onboarding cue tracks live profile state: visible on a fresh backend,
+  // hidden once any profile exists (e.g. a dev machine with a local forge).
+  const profiles = await (await request.get('/api/profiles')).json()
+  const hasProfiles = Object.keys(profiles.profiles || {}).length > 0
+  if (hasProfiles) {
+    await expect(page.getByTestId('onboarding-cue')).toBeHidden()
+  } else {
+    await expect(page.getByTestId('onboarding-cue')).toBeVisible()
+  }
 })
 
 test('logs page renders level filter and refresh', async ({ page }) => {
@@ -89,4 +96,18 @@ test('profile form rejects empty submission', async ({ page }) => {
   await page.getByTestId('nav-profiles').click()
   await page.getByTestId('profile-add').click()
   await expect(page.getByText('All fields are required.')).toBeVisible()
+})
+
+test('onboarding panel covers both forge paths', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('nav-profiles').click()
+  await expect(page.getByTestId('onboarding-tab-local')).toBeVisible()
+  // Auto-probe of the default local URL resolves to either state
+  await expect(page.getByTestId('local-probe-result')).toContainText(/Reachable|Not reachable/, {
+    timeout: 20000
+  })
+  await page.getByTestId('onboarding-tab-codeberg').click()
+  await expect(page.getByText('Create a free account at')).toBeVisible()
+  await page.getByTestId('onboarding-tab-local').click()
+  await expect(page.getByTestId('local-probe-check')).toBeVisible()
 })

@@ -999,6 +999,132 @@ export function ChatPage() {
   )
 }
 
+// ── Onboarding (Local Forgejo vs Codeberg.org) ───────────────────────────────
+
+const DEFAULT_LOCAL_URL = 'http://127.0.0.1:11243'
+
+export function OnboardingPanel() {
+  const [tab, setTab] = useState('local')
+  const [probeUrl, setProbeUrl] = useState(DEFAULT_LOCAL_URL)
+  const [probe, setProbe] = useState(null)
+  const [probing, setProbing] = useState(false)
+
+  const checkInstance = async (url) => {
+    setProbing(true)
+    setProbe(null)
+    try {
+      const res = await fetch(`/api/forgejo/ping?url=${encodeURIComponent(url)}`)
+      setProbe(await res.json())
+    } catch (err) {
+      setProbe({ reachable: false, url, error: err.message })
+    } finally {
+      setProbing(false)
+    }
+  }
+
+  useEffect(() => {
+    checkInstance(DEFAULT_LOCAL_URL)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg space-y-4">
+      <h3 className="font-semibold text-sm tracking-wider text-surface-300 border-b border-surface-800 pb-2">
+        GET STARTED — PICK YOUR FORGE
+      </h3>
+      <div className="flex items-center gap-1 bg-surface-950 border border-surface-800 rounded-lg p-1 w-fit">
+        {[
+          { id: 'local', label: 'Local Forgejo' },
+          { id: 'codeberg', label: 'Codeberg.org' }
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            data-testid={`onboarding-tab-${t.id}`}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === t.id ? 'bg-surface-700 text-surface-100' : 'text-surface-500 hover:text-surface-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'local' && (
+        <div className="space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={probeUrl}
+              onChange={(e) => setProbeUrl(e.target.value)}
+              placeholder="http://127.0.0.1:11243"
+              data-testid="local-probe-url"
+              className="flex-1 min-w-52 bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+            />
+            <button
+              onClick={() => checkInstance(probeUrl)}
+              disabled={probing}
+              data-testid="local-probe-check"
+              className="px-3 py-2 bg-surface-800 hover:bg-surface-700 text-sm text-surface-200 rounded-lg disabled:opacity-50"
+            >
+              {probing ? 'Checking...' : 'Check instance'}
+            </button>
+          </div>
+          {probe && (
+            <div
+              data-testid="local-probe-result"
+              className={`p-3 rounded-lg border ${
+                probe.reachable
+                  ? 'bg-green-500/10 border-green-500/20 text-green-300'
+                  : 'bg-red-500/10 border-red-500/20 text-red-300'
+              }`}
+            >
+              {probe.reachable
+                ? `Reachable — Forgejo v${probe.version} at ${probe.url}.`
+                : `Not reachable — ${probe.error || 'no answer'}`}
+            </div>
+          )}
+          <ol className="text-surface-400 space-y-1.5 list-decimal list-inside">
+            <li>Run Forgejo locally (e.g. docker: <code className="text-surface-300">codeberg.org/forgejo/forgejo</code>, data volume persisted).</li>
+            <li>Create the admin account on first launch, then open <code className="text-surface-300">user/settings/applications</code> on your instance.</li>
+            <li>Generate a token with <code className="text-surface-300">repo</code> + <code className="text-surface-300">issue</code> scopes (add <code className="text-surface-300">admin</code> for global runners).</li>
+            <li>Paste URL + token into the profile form below and activate it.</li>
+          </ol>
+        </div>
+      )}
+
+      {tab === 'codeberg' && (
+        <div className="space-y-3 text-sm">
+          <ol className="text-surface-400 space-y-1.5 list-decimal list-inside">
+            <li>
+              Create a free account at{' '}
+              <a href="https://codeberg.org/user/sign_up" target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">
+                codeberg.org
+              </a>{' '}
+              (the nonprofit public Forgejo host).
+            </li>
+            <li>
+              Open{' '}
+              <a href="https://codeberg.org/user/settings/applications" target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">
+                Applications settings
+              </a>{' '}
+              and generate a token with <code className="text-surface-300">repo</code> +{' '}
+              <code className="text-surface-300">issue</code> scopes.
+            </li>
+            <li>
+              Paste <code className="text-surface-300">https://codeberg.org</code> + token into the profile
+              form below and activate it.
+            </li>
+          </ol>
+          <p className="text-surface-500">
+            Nothing to install, but your code lives on their servers and you need internet. Prefer
+            self-hosted? Switch to the Local Forgejo tab.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Repository Detail Tabs (Issues / Pulls / Files) ──────────────────────────
 
 const ISSUE_STATES = ['open', 'closed', 'all']
