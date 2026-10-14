@@ -71,10 +71,13 @@ Forgejo/Codeberg integration for agents (v0.2.0+ portmanteau surface) and humans
 ## Web companion (Vite, default :11132)
 
 Views: Dashboard (KPIs + instance health + GPU banner), Inbox (notification
-threads), Repositories (+ drill-down + workflow runs), Actions Runners, Profiles
-(CRUD), Tools (live capability cards), Skills (skill + prompt text), Chat
-(streaming, skill-first, 4 personalities, persisted history), Settings (service
-status + LLM providers), Help, API Docs. Key testids: `sidebar-toggle`, `nav-*`,
+threads), Repositories (browser + drill-down with workflow runs + clone info),
+Actions Runners, Profiles (CRUD), Tools (live capability cards), Skills (skill
++ prompt text), Chat (streaming, skill-first, 4 personalities, persisted
+history), Settings (service status + LLM providers), Logs, Help, API Docs.
+Note: issue/PR/file writes (create, comment, merge, diff) have no dashboard UI
+— they run through MCP tools or Chat drafting; see coverage notes in the repo
+assess report. Key testids: `sidebar-toggle`, `nav-*`,
 `profile-key/label/url/token`, `profile-add`, `tool-card-*`, `chat-*`,
 `llm-provider-select`, `llm-model-select`, `onboarding-cue`.
 
