@@ -511,6 +511,81 @@ def test_proxy_error_paths(mock_get_client):
         assert response.json()["success"] is False
 
 
+# ── web.py write proxies ─────────────────────────────────────────────────────
+
+
+def _ok_client(**method_returns):
+    mock_client = MagicMock()
+    for method, value in method_returns.items():
+        setattr(mock_client, method, AsyncMock(return_value=value))
+    return mock_client
+
+
+@patch("forgejo_mcp.web.get_client")
+def test_proxy_create_repo(mock_get_client):
+    mock_get_client.return_value = _ok_client(create_repository={"success": True, "data": {"full_name": "me/n"}})
+    res = client.post("/api/repos", json={"name": "n"})
+    assert res.status_code == 200
+    assert res.json()["data"]["full_name"] == "me/n"
+
+    mock_get_client.side_effect = ValueError("No active profile configured.")
+    res = client.post("/api/repos", json={"name": "n"})
+    assert res.json()["success"] is False
+
+
+@patch("forgejo_mcp.web.get_client")
+def test_proxy_issue_write(mock_get_client):
+    mock_get_client.return_value = _ok_client(
+        create_issue={"success": True, "data": {"number": 5}},
+        create_issue_comment={"success": True, "data": {"html_url": "c"}},
+    )
+    res = client.post("/api/issues", json={"owner": "o", "repo": "r", "title": "T"})
+    assert res.json()["data"]["number"] == 5
+    res = client.post("/api/issues/comment", json={"owner": "o", "repo": "r", "index": 5, "body": "hi"})
+    assert res.json()["success"] is True
+
+    mock_get_client.side_effect = ValueError("No active profile configured.")
+    res = client.post("/api/issues", json={"owner": "o", "repo": "r", "title": "T"})
+    assert res.json()["success"] is False
+
+
+@patch("forgejo_mcp.web.get_client")
+def test_proxy_pr_write_and_diff(mock_get_client):
+    mock_get_client.return_value = _ok_client(
+        create_pull_request={"success": True, "data": {"number": 6}},
+        merge_pull_request={"success": True, "data": {}},
+        get_pull_request_diff={"success": True, "data": "x" * 50000},
+    )
+    res = client.post("/api/pulls", json={"owner": "o", "repo": "r", "title": "T", "head": "f", "base": "main"})
+    assert res.json()["data"]["number"] == 6
+    res = client.post("/api/pulls/merge", json={"owner": "o", "repo": "r", "index": 6})
+    assert res.json()["success"] is True
+    res = client.get("/api/pulls/diff", params={"owner": "o", "repo": "r", "index": 6})
+    assert res.json()["success"] is True
+    assert "truncated due to size" in res.json()["data"]
+
+    mock_get_client.side_effect = ValueError("No active profile configured.")
+    assert (
+        client.post("/api/pulls", json={"owner": "o", "repo": "r", "title": "T", "head": "f", "base": "b"}).json()[
+            "success"
+        ]
+        is False
+    )
+    assert client.post("/api/pulls/merge", json={"owner": "o", "repo": "r", "index": 1}).json()["success"] is False
+    assert client.get("/api/pulls/diff", params={"owner": "o", "repo": "r", "index": 1}).json()["success"] is False
+
+
+@patch("forgejo_mcp.web.get_client")
+def test_proxy_file_content(mock_get_client):
+    mock_get_client.return_value = _ok_client(get_file_content={"success": True, "data": "hello"})
+    res = client.get("/api/file", params={"owner": "o", "repo": "r", "filepath": "README.md"})
+    assert res.json() == {"success": True, "data": "hello"}
+
+    mock_get_client.side_effect = ValueError("No active profile configured.")
+    res = client.get("/api/file", params={"owner": "o", "repo": "r", "filepath": "README.md"})
+    assert res.json()["success"] is False
+
+
 # ── Webhook receiver ─────────────────────────────────────────────────────────
 
 

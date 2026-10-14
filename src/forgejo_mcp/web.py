@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .client import get_client, registry
 
@@ -133,6 +134,122 @@ async def proxy_list_pulls(
         client = get_client(profile)
         res = await client.list_pull_requests(owner, repo, state, page, limit)
         return res
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class RepoCreatePayload(BaseModel):
+    name: str
+    description: str = ""
+    private: bool = True
+    profile: str | None = None
+
+
+@router.post("/repos")
+async def proxy_create_repo(payload: RepoCreatePayload):
+    """Create a repository (dashboard New-repo dialog)."""
+    try:
+        client = get_client(payload.profile)
+        return await client.create_repository(payload.name, payload.description, payload.private)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class IssueCreatePayload(BaseModel):
+    owner: str
+    repo: str
+    title: str
+    body: str = ""
+    profile: str | None = None
+
+
+@router.post("/issues")
+async def proxy_create_issue(payload: IssueCreatePayload):
+    """Create an issue (dashboard Issues tab)."""
+    try:
+        client = get_client(payload.profile)
+        return await client.create_issue(payload.owner, payload.repo, payload.title, payload.body)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class IssueCommentPayload(BaseModel):
+    owner: str
+    repo: str
+    index: int
+    body: str
+    profile: str | None = None
+
+
+@router.post("/issues/comment")
+async def proxy_comment_issue(payload: IssueCommentPayload):
+    """Comment on an issue or PR (dashboard Issues/Pulls tabs)."""
+    try:
+        client = get_client(payload.profile)
+        return await client.create_issue_comment(payload.owner, payload.repo, payload.index, payload.body)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class PRCreatePayload(BaseModel):
+    owner: str
+    repo: str
+    title: str
+    head: str
+    base: str
+    body: str = ""
+    profile: str | None = None
+
+
+@router.post("/pulls")
+async def proxy_create_pr(payload: PRCreatePayload):
+    """Open a pull request (dashboard Pulls tab)."""
+    try:
+        client = get_client(payload.profile)
+        return await client.create_pull_request(
+            payload.owner, payload.repo, payload.title, payload.head, payload.base, payload.body
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class PRMergePayload(BaseModel):
+    owner: str
+    repo: str
+    index: int
+    style: str = "merge"
+    profile: str | None = None
+
+
+@router.post("/pulls/merge")
+async def proxy_merge_pr(payload: PRMergePayload):
+    """Merge a pull request (dashboard Pulls tab, human-confirmed)."""
+    try:
+        client = get_client(payload.profile)
+        return await client.merge_pull_request(payload.owner, payload.repo, payload.index, payload.style)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/pulls/diff")
+async def proxy_pr_diff(owner: str, repo: str, index: int, profile: str | None = None):
+    """Raw diff for one PR (dashboard Pulls tab review view, 40k cap applied client-side by the tool contract)."""
+    try:
+        client = get_client(profile)
+        res = await client.get_pull_request_diff(owner, repo, index)
+        if res.get("success") and isinstance(res.get("data"), str) and len(res["data"]) > 40000:
+            res = {**res, "data": res["data"][:40000] + "\n\n...[Diff truncated due to size limit]..."}
+        return res
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/file")
+async def proxy_file_content(owner: str, repo: str, filepath: str, ref: str = "main", profile: str | None = None):
+    """Decoded file contents (dashboard Files tab)."""
+    try:
+        client = get_client(profile)
+        return await client.get_file_content(owner, repo, filepath, ref)
     except Exception as e:
         return {"success": False, "error": str(e)}
 
