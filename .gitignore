@@ -26,6 +26,11 @@ data/
 *.db
 *.sqlite
 
+# Coverage artifacts (regenerable)
+.coverage
+coverage.xml
+htmlcov/
+
 # OS-specific files
 Thumbs.db
 ehthumbs.db
