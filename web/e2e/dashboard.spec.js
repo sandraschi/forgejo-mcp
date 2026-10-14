@@ -16,6 +16,8 @@ test('dashboard hero describes the app with live version', async ({ page }) => {
   await expect(hero).toBeVisible()
   await expect(hero).toContainText('Forgejo Companion')
   await expect(hero).toContainText('v0.2.0')
+  await expect(hero).toContainText('self-hosted')
+  await expect(hero).toContainText('Codeberg')
 })
 
 test('quick actions navigate without a profile', async ({ page }) => {

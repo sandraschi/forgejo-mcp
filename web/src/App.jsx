@@ -20,7 +20,6 @@ import {
   Check,
   AlertCircle,
   ExternalLink,
-  Info,
   RefreshCw,
   Terminal,
   Wrench
@@ -290,24 +289,37 @@ export default function App() {
               {/* Hero */}
               <div
                 data-testid="dashboard-hero"
-                className="bg-gradient-to-r from-surface-900 via-surface-900 to-primary-950/40 border border-surface-800 rounded-xl p-5 flex flex-wrap items-center gap-4"
+                className="bg-gradient-to-r from-surface-900 via-surface-900 to-primary-950/40 border border-surface-800 rounded-xl p-5 space-y-3"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${serviceStatus ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <div className="min-w-0">
-                    <h2 className="font-bold text-base text-surface-100">Forgejo Companion</h2>
-                    <p className="text-sm text-surface-400 truncate">
-                      Manage Forgejo and Codeberg instances — repos, issues, PRs, runners, inbox — plus local-LLM chat.
-                    </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${serviceStatus ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <div className="min-w-0">
+                      <h2 className="font-bold text-base text-surface-100">Forgejo Companion</h2>
+                      <p className="text-sm text-surface-400 mt-0.5 leading-relaxed">
+                        <strong className="text-surface-200">Forgejo</strong> is the community-run, self-hosted
+                        alternative to GitHub (a Gitea fork under the non-profit Codeberg e.V. — Codeberg.org
+                        itself runs it). This dashboard manages your Forgejo and Codeberg instances in one
+                        place: browse repositories, triage issues, review and merge pull requests, watch
+                        Actions runners, clear your notification inbox, and ask the built-in chat about it
+                        all — backed by a local LLM, with nothing sent to the cloud.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-surface-400 shrink-0">
+                    <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">v{APP_VERSION}</code>
+                    <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">:11132/:11133</code>
+                    {serviceStatus && (
+                      <span className="text-surface-500">up {Math.round(serviceStatus.uptime_seconds)}s · {serviceStatus.tool_count} tools</span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-surface-400 shrink-0">
-                  <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">v{APP_VERSION}</code>
-                  <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">:11132/:11133</code>
-                  {serviceStatus && (
-                    <span className="text-surface-500">up {Math.round(serviceStatus.uptime_seconds)}s · {serviceStatus.tool_count} tools</span>
-                  )}
-                </div>
+                <p className="text-sm text-surface-500 leading-relaxed border-t border-surface-800/60 pt-3">
+                  New here? Add your instance under <strong className="text-surface-300">Profiles</strong> with
+                  a personal access token, then start with <strong className="text-surface-300">Triage inbox</strong> below —
+                  or ask <strong className="text-surface-300">Claude</strong> to use the 7 MCP tools directly.
+                  No Forgejo yet? Codeberg.org gives you a free account in minutes.
+                </p>
               </div>
 
               {/* GPU Opportunity Banner */}
@@ -415,8 +427,8 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Status Details / Logs / About */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Status Details / Logs */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* Instance Info */}
                 <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg space-y-4">
@@ -449,20 +461,6 @@ export default function App() {
                       No active instance configured. Navigate to "Profiles" to add one.
                     </div>
                   )}
-                </div>
-
-                {/* SOTA Info Panel */}
-                <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg space-y-4">
-                  <h3 className="font-semibold text-sm tracking-wider text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
-                    <Info className="h-4 w-4 text-primary-500" />
-                    WHAT IS FORGEJO?
-                  </h3>
-                  <p className="text-sm text-surface-400 leading-relaxed">
-                    Forgejo is a community-driven fork of Gitea, hosted under the non-profit *Codeberg e.V.*
-                  </p>
-                  <p className="text-sm text-surface-400 leading-relaxed">
-                    It provides a lightweight, GPLv3-licensed, self-hosted repository collaboration platform containing issues, pull requests, package registries, and GitHub-compatible runner actions.
-                  </p>
                 </div>
 
                 {/* Recent Logs Preview */}
