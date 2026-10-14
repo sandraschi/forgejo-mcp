@@ -10,7 +10,7 @@
 
 FastMCP server + React companion for **Forgejo** and **Codeberg** — multi-profile remotes, repos/issues/PRs, and self-hosted runner monitoring.
 
-**v0.1.0** · Frontend **11132** · Backend **11133**
+**v0.2.0** · Frontend **11132** · Backend **11133**
 
 > FastMCP 3.4.4+ · multi-profile · Actions runner health · SOTA dashboard · local LLM glom-on
 
@@ -37,19 +37,21 @@ Dashboard: http://127.0.0.1:11132 · API/MCP: http://127.0.0.1:11133
 
 Requires [uv](https://github.com/astral-sh/uv) and [Bun](https://bun.sh).
 
-## MCP tools (overview)
+## MCP tools (portmanteau, dialogic)
 
-- `forgejo_profile_*` — list / add / set_active
-- `forgejo_repo_*` — list / create / search
-- `forgejo_issue_*` — list / create / comment
-- `forgejo_pr_*` — list / create / merge / diff
-- `forgejo_runner_list` / `forgejo_workflow_runs`
-- `forgejo_file_get`
+- `forgejo_profiles` — `list` / `add` / `set_active` / `remove`
+- `forgejo_repos` — `list` / `create` / `search` / `file_get`
+- `forgejo_issues` — `list` / `create` / `comment`
+- `forgejo_prs` — `list` / `create` / `merge` / `diff`
+- `forgejo_actions` — `runners` / `workflow_runs` / `notifications`
 - `forgejo_status` — health/version/profiles (dialogic dict)
 - `forgejo_shutdown` — confirm-gated termination
 
-Plus MCP resource `forgejo://profiles`, prompt `forgejo-triage`, and REST
-`GET /api/status`, `GET /api/skills`, `POST /api/shutdown`.
+Plus MCP resource `forgejo://profiles`, prompt `forgejo-triage`, skills served
+from `skills/` via `SkillsDirectoryProvider`, and REST
+`GET /api/status`, `GET /api/skills`, `POST /api/shutdown`,
+`GET /api/logs`, `GET /api/notifications`,
+`GET /api/llm/discover`, `GET /api/llm/models`, `POST /api/llm/chat/stream`.
 
 ## License
 

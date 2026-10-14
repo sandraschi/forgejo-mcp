@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0] (assfix deferred pass, 2026-10-14) — BREAKING
+
+Tool surface replaced: 18 atomic `forgejo_*` tools → 7 portmanteau tools
+(`forgejo_profiles`, `forgejo_repos`, `forgejo_issues`, `forgejo_prs`,
+`forgejo_actions`, `forgejo_status`, `forgejo_shutdown`) with an `action`
+discriminator. All tools now return dialogic `{"success", "message", "data"}`.
+Update saved MCP tool calls; REST API is unchanged.
+
+### Added
+- `SkillsDirectoryProvider` serves `skills/` to skill-first clients (fail-soft)
+- `GET /api/logs` (server ring buffer), `GET /api/notifications` (Inbox feed)
+- `GET /api/llm/discover`, `GET /api/llm/models`, `POST /api/llm/chat/stream`
+  (backend Ollama/LM Studio proxy, SSE) — Chat/Settings pages use these only
+- `forgejo_actions(action="notifications")` via new `list_notifications` client
+- `tool_details` (live descriptions + read-only flags) in `/api/capabilities`;
+  prompt text in `/api/skills`
+- pytest-cov gate (`--cov-fail-under=70`, currently 78%), 37 tests
+
 ## [Unreleased] (assfix 2026-10-14, second full pass)
 
 ### Fixed

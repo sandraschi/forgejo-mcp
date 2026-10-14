@@ -3,25 +3,17 @@
 
 Generated on: 2026-07-20
 
-## Tools (18 registered)
-- **`forgejo_profile_list`**: List configured profiles.
-- **`forgejo_profile_add`**: Add profile credentials.
-- **`forgejo_profile_set_active`**: Swap active target.
-- **`forgejo_repo_list`**: Get repo logs and paths.
-- **`forgejo_repo_create`**: Scaffold new repository.
-- **`forgejo_repo_search`**: Search remote instance repos.
-- **`forgejo_issue_list`**: List namespace issues.
-- **`forgejo_issue_create`**: Add issue to repository.
-- **`forgejo_issue_comment`**: Leave comment on issues/PRs.
-- **`forgejo_pr_list`**: View repository pulls.
-- **`forgejo_pr_create`**: Create merge requests.
-- **`forgejo_pr_merge`**: Complete repository PR merge.
-- **`forgejo_pr_diff`**: View raw git diff details.
-- **`forgejo_runner_list`**: Monitor active Gitea/Forgejo runner agents.
-- **`forgejo_workflow_runs`**: Inspect active Actions workflow jobs.
-- **`forgejo_file_get`**: Fetch raw file content.
+## Tools (7 portmanteau, all dialogic `{"success", "message", "data"}`)
+- **`forgejo_profiles`** (`list`/`add`/`set_active`/`remove`): connection profiles.
+- **`forgejo_repos`** (`list`/`create`/`search`/`file_get`): repos + raw file contents.
+- **`forgejo_issues`** (`list`/`create`/`comment`): issues + PR comments.
+- **`forgejo_prs`** (`list`/`create`/`merge`/`diff`): full PR lifecycle (40k diff cap).
+- **`forgejo_actions`** (`runners`/`workflow_runs`/`notifications`): ops + Inbox feed.
 - **`forgejo_status`**: Health, version, profiles, tool inventory (dialogic dict).
-- **`forgejo_shutdown`**: Confirm-gated server termination.
+- **`forgejo_shutdown`**: Confirm-gated server termination (dialogic refusal).
+
+v0.2.0 breaking change: the 18 atomic `forgejo_*` tools are replaced by the 5
+portmanteau tools above (`action` discriminator). Update saved tool calls.
 
 ## Resources / prompts
 - `forgejo://profiles` (MCP resource, no tokens), `forgejo-triage` (MCP prompt).
