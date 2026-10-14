@@ -289,20 +289,18 @@ export default function App() {
               {/* Hero */}
               <div
                 data-testid="dashboard-hero"
-                className="bg-gradient-to-r from-surface-900 via-surface-900 to-primary-950/40 border border-surface-800 rounded-xl p-5 space-y-3"
+                className="bg-gradient-to-r from-surface-900 via-surface-900 to-primary-950/40 border border-surface-800 rounded-xl px-5 py-4"
               >
-                <div className="flex flex-wrap items-center gap-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${serviceStatus ? 'bg-green-500' : 'bg-red-500'}`} />
                     <div className="min-w-0">
-                      <h2 className="font-bold text-base text-surface-100">Forgejo Companion</h2>
-                      <p className="text-sm text-surface-400 mt-0.5 leading-relaxed">
-                        <strong className="text-surface-200">Forgejo</strong> is the community-run, self-hosted
-                        alternative to GitHub (a Gitea fork under the non-profit Codeberg e.V. — Codeberg.org
-                        itself runs it). This dashboard manages your Forgejo and Codeberg instances in one
-                        place: browse repositories, triage issues, review and merge pull requests, watch
-                        Actions runners, clear your notification inbox, and ask the built-in chat about it
-                        all — backed by a local LLM, with nothing sent to the cloud.
+                      <h2 className="font-bold text-base text-surface-100 leading-tight">Forgejo Companion</h2>
+                      <p className="text-sm text-surface-400 mt-1 leading-relaxed">
+                        The self-hosted GitHub alternative (a Gitea fork — Codeberg.org runs it), managed
+                        here: repositories, issues, pull requests, runners, inbox, plus local-LLM chat.
+                        New? Add a profile, then hit <strong className="text-surface-300">Triage inbox</strong> below.
+                        No forge yet? Codeberg.org is free.
                       </p>
                     </div>
                   </div>
@@ -314,36 +312,7 @@ export default function App() {
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-surface-500 leading-relaxed border-t border-surface-800/60 pt-3">
-                  New here? Add your instance under <strong className="text-surface-300">Profiles</strong> with
-                  a personal access token, then start with <strong className="text-surface-300">Triage inbox</strong> below —
-                  or ask <strong className="text-surface-300">Claude</strong> to use the 7 MCP tools directly.
-                  No Forgejo yet? Codeberg.org gives you a free account in minutes.
-                </p>
               </div>
-
-              {/* GPU Opportunity Banner */}
-              {localLlmStatus === 'not_detected' && (
-                <div
-                  data-testid="onboarding-cue"
-                  className="bg-gradient-to-r from-amber-500/10 to-primary-600/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4 animate-fade-in">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-sm text-amber-400">High-Performance GPU Detected?</h4>
-                      <p className="text-sm text-surface-400 mt-0.5">
-                        Unlock local intelligence features for free. Install **Ollama** or **LM Studio** on port 11434/1234, and this webapp will automatically bind for code summarization and PR reviews.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => window.open('https://ollama.com', '_blank')}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-surface-950 text-sm font-semibold rounded-lg shrink-0 transition-colors"
-                  >
-                    Download Ollama
-                  </button>
-                </div>
-              )}
 
               {/* KPI Grid */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -426,6 +395,27 @@ export default function App() {
                   <RefreshCw className="h-4 w-4" /> Rescan LLM
                 </button>
               </div>
+
+              {/* GPU Opportunity Banner */}
+              {localLlmStatus === 'not_detected' && (
+                <div
+                  data-testid="onboarding-cue"
+                  className="bg-gradient-to-r from-amber-500/10 to-primary-600/10 border border-amber-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-4 animate-fade-in">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
+                    <p className="text-sm text-surface-400 truncate">
+                      <strong className="text-amber-400 font-semibold">No local LLM detected.</strong>
+                      <span> Install Ollama or LM Studio (ports 11434/1234) — the dashboard binds automatically for free code summarization and PR reviews.</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => window.open('https://ollama.com', '_blank')}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-surface-950 text-sm font-semibold rounded-lg shrink-0 transition-colors"
+                  >
+                    Download Ollama
+                  </button>
+                </div>
+              )}
 
               {/* Status Details / Logs */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
