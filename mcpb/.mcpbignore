@@ -1,0 +1,28 @@
+# MCPB bundle exclusions (MCPB_PACKAGING_STANDARDS.md S2.4).
+# The pack pipeline wipes + recopies src/ -> mcpb/src/ before pack; these
+# patterns keep venvs, webapps, tests, data, and editor dross out of the bundle.
+.venv/
+venv/
+node_modules/
+**/node_modules/
+web/
+webapp/
+src-tauri/
+target/
+tests/
+test/
+data/
+*.sqlite3
+*.db
+*.db-*
+.env
+dist/
+reports/
+__pycache__/
+*.pyc
+*.bak
+*.bak.*
+.git/
+.github/
+.vscode/
+.idea/

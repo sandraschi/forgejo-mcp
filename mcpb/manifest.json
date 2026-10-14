@@ -1,0 +1,29 @@
+{
+  "manifest_version": "0.2",
+  "name": "forgejo-mcp",
+  "version": "0.2.0",
+  "description": "FastMCP 3.4+ server for Forgejo and Codeberg integration (profiles, repos, issues, PRs, runners, inbox, local-LLM chat)",
+  "author": { "name": "sandraschi" },
+  "server": {
+    "type": "python",
+    "entry_point": "src/forgejo_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "forgejo_mcp"],
+      "env": {
+        "PYTHONPATH": "${__dirname}/src",
+        "PYTHONUNBUFFERED": "1",
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  },
+  "tools": [
+    { "name": "forgejo_profiles", "description": "Manage connection profiles: list, add, set_active, remove." },
+    { "name": "forgejo_repos", "description": "Repositories: list, create, search. Files: file_get." },
+    { "name": "forgejo_issues", "description": "Issues: list, create. Comments: comment (issues and PRs)." },
+    { "name": "forgejo_prs", "description": "Pull requests: list, create, merge, diff." },
+    { "name": "forgejo_actions", "description": "Ops: runners, workflow_runs, notifications." },
+    { "name": "forgejo_status", "description": "Report server health, version, profiles, and tool inventory." },
+    { "name": "forgejo_shutdown", "description": "Shut down the server process (confirm-gated)." }
+  ]
+}
