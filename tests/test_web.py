@@ -509,3 +509,50 @@ def test_proxy_error_paths(mock_get_client):
         response = client.get(path)
         assert response.status_code == 200
         assert response.json()["success"] is False
+
+
+# ── Webhook receiver ─────────────────────────────────────────────────────────
+
+
+def _sign(secret: str, body: bytes) -> str:
+    import hashlib
+    import hmac
+
+    return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+
+def test_webhook_disabled_without_secret(monkeypatch):
+    monkeypatch.delenv("FORGEJO_WEBHOOK_SECRET", raising=False)
+    response = client.post("/api/webhooks/forgejo", json={"repository": {}})
+    assert response.status_code == 503
+
+
+def test_webhook_bad_signature(monkeypatch):
+    monkeypatch.setenv("FORGEJO_WEBHOOK_SECRET", "s3cret")
+    response = client.post(
+        "/api/webhooks/forgejo",
+        content=b'{"repository": {}}',
+        headers={"X-Forgejo-Signature": "0" * 64, "X-Forgejo-Event": "push"},
+    )
+    assert response.status_code == 403
+
+
+def test_webhook_accepts_and_lists(monkeypatch):
+    monkeypatch.setenv("FORGEJO_WEBHOOK_SECRET", "s3cret")
+    body = b'{"repository": {"full_name": "me/demo"}, "sender": {"login": "me"}}'
+    headers = {
+        "X-Forgejo-Signature": _sign("s3cret", body),
+        "X-Forgejo-Event": "push",
+        "X-Forgejo-Delivery": "d-1",
+    }
+    response = client.post("/api/webhooks/forgejo", content=body, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["repository"] == "me/demo"
+    assert data["data"]["sender"] == "me"
+
+    listed = client.get("/api/webhooks/events")
+    assert listed.status_code == 200
+    assert listed.json()["count"] >= 1
+    assert listed.json()["events"][0]["event"] == "push"

@@ -4,6 +4,8 @@ Provides tools, resources, and prompts for Forgejo/Codeberg repository managemen
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -17,7 +19,7 @@ from typing import Annotated, Any, Literal
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastmcp import Context, FastMCP
@@ -733,6 +735,53 @@ async def api_notifications(profile: str | None = None, unread_only: bool = True
         return {"success": False, "error": str(e)}
 
 
+_webhook_events: deque[dict] = deque(maxlen=50)
+
+
+@web_app.post("/api/webhooks/forgejo")
+async def api_webhook_forgejo(request: Request):
+    """Inbound Forgejo/Gitea webhook receiver (push, issues, pull_request, ...).
+
+    Point a repo webhook at this endpoint with the shared secret from
+    ``FORGEJO_WEBHOOK_SECRET``. Signature: HMAC-SHA256 hex over the raw body in
+    ``X-Forgejo-Signature`` (or ``X-Gitea-Signature``).
+
+    ## Return Format
+    Dialogic dict; deliveries are kept in a 50-event in-memory log.
+    """
+    secret = os.getenv("FORGEJO_WEBHOOK_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Webhook receiver disabled (FORGEJO_WEBHOOK_SECRET unset).")
+    body = await request.body()
+    signature = request.headers.get("x-forgejo-signature") or request.headers.get("x-gitea-signature") or ""
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature.lower(), expected.lower()):
+        raise HTTPException(status_code=403, detail="Bad webhook signature.")
+    try:
+        payload = json.loads(body.decode("utf-8") or "{}")
+    except ValueError:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    event = {
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "event": request.headers.get("x-forgejo-event") or request.headers.get("x-gitea-event") or "unknown",
+        "delivery": request.headers.get("x-forgejo-delivery") or request.headers.get("x-gitea-delivery") or "",
+        "repository": (payload.get("repository") or {}).get("full_name", ""),
+        "sender": (payload.get("sender") or {}).get("login", ""),
+    }
+    _webhook_events.append(event)
+    logger.info(f"webhook {event['event']} from {event['repository'] or '?'}")
+    return {"success": True, "message": f"Webhook '{event['event']}' recorded.", "data": event}
+
+
+@web_app.get("/api/webhooks/events")
+async def api_webhook_events(limit: int = 50):
+    """Recent inbound webhook deliveries (newest first)."""
+    events = list(reversed(_webhook_events))[: max(1, min(limit, 50))]
+    return {"count": len(events), "events": events}
+
+
 class ChatMessage(BaseModel):
     role: str = "user"
     content: str = ""
@@ -917,6 +966,8 @@ async def api_capabilities():
             "/api/shutdown",
             "/api/logs",
             "/api/notifications",
+            "/api/webhooks/forgejo",
+            "/api/webhooks/events",
             "/api/llm/discover",
             "/api/llm/models",
             "/api/llm/chat/stream",
