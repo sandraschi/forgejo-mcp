@@ -3,7 +3,7 @@
     "SessionStart": [
       {
         "type": "text",
-        "content": "## forgejo-mcp session context — call forgejo_status then forgejo_profile_list first; pass `profile` off-active; prefer forgejo_repo_search / forgejo_pr_diff before mutating calls; ports 11132/11133; never commit PATs."
+        "content": "## forgejo-mcp session context — call forgejo_status then forgejo_profiles (action=list) first; pass `profile` off-active; prefer forgejo_repos search / forgejo_prs diff before mutating calls; ports 11132/11133; never commit PATs."
       }
     ]
   }
