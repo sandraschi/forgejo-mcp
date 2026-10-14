@@ -295,6 +295,15 @@ class ForgejoClient:
             "GET", f"repos/{owner}/{repo}/actions/runs", params={"page": page, "limit": limit}
         )
 
+    async def list_notifications(self, unread_only: bool = True, page: int = 1, limit: int = 20) -> dict[str, Any]:
+        """Fetch notification threads for the authenticated user.
+
+        ## Return Format
+        `{"success", "data"}` where data is the raw thread list (subject, unread, updated_at).
+        """
+        params = {"all": "false" if unread_only else "true", "page": page, "limit": limit}
+        return await self._request_async("GET", "notifications", params=params)
+
     async def get_file_content(self, owner: str, repo: str, filepath: str, ref: str = "main") -> dict[str, Any]:
         """Retrieves raw content of a file from the repository."""
         # Forgejo returns metadata + base64 content on GET /contents
