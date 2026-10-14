@@ -35,6 +35,9 @@ Update saved MCP tool calls; REST API is unchanged.
   REST routes with tests; e2e 21/21
 - Dashboard hero (live version/ports/status), 5 quick-action shortcuts,
   recent-warnings preview box; e2e 24/24
+- Local Forgejo wired up (Goliath `forgejo` container, profile `local`);
+  dual-path onboarding panel (Local with live instance probe + Codeberg),
+  `GET /api/forgejo/ping`; ONBOARDING instance matrix; e2e 25/25
 - Saved-call refresh: mirror project pages (mcp-central-docs, documentation-mcp),
   versions aligned (`__init__`, plugin, sidebar), `just ci` via bun, web README
 
