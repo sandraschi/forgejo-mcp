@@ -47,7 +47,7 @@ ci:
     uv run ruff format --check src/ tests/
     uv run pyright src/
     uv run pytest tests/ -q
-    cd web; npm run lint
+    cd web; & "$env:USERPROFILE\.bun\bin\bun.exe" run lint
 
 # Build frontend production bundle
 build-frontend:
