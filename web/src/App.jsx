@@ -35,7 +35,7 @@ const THEME_KEY = 'forgejo-light-mode'
 
 // Webapp constants: backend version/docs are served same-origin via the vite
 // proxy (see vite.config.js), so docs links stay relative and work from any host.
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.2.0'
 const DOCS_PATH = '/docs'
 
 export default function App() {
