@@ -7,19 +7,26 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
+  Cpu,
+  Inbox,
+  MessageSquare,
+  Moon,
   Plus,
+  Settings,
+  Sparkles,
+  Sun,
   Trash2,
   Check,
   AlertCircle,
   ExternalLink,
   Info,
-  Sparkles,
   RefreshCw,
-  Cpu,
-  Moon,
-  Sun
+  Terminal,
+  Wrench
 } from 'lucide-react'
 import { useAppStore } from './store'
+import { ChatPage, HelpPage, InboxPage, LogsPage, SettingsPage, SkillsPage, ToolsPage } from './pages'
 
 // EXPERIMENTAL light mode (invert hack). Not fleet standard - see index.css.
 // Toggling `.dark` off the root flips the invert filter; persisted so the
@@ -149,9 +156,16 @@ export default function App() {
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'inbox', label: 'Inbox', icon: Inbox },
             { id: 'profiles', label: 'Profiles', icon: Users },
             { id: 'repositories', label: 'Repositories', icon: GitFork },
             { id: 'runners', label: 'Actions Runners', icon: Play },
+            { id: 'tools', label: 'Tools', icon: Wrench },
+            { id: 'skills', label: 'Skills', icon: Sparkles },
+            { id: 'chat', label: 'Chat', icon: MessageSquare },
+            { id: 'settings', label: 'Settings', icon: Settings },
+            { id: 'logs', label: 'Logs', icon: Terminal },
+            { id: 'help', label: 'Help', icon: CircleHelp },
             { id: 'apidocs', label: 'API Docs', icon: BookOpen }
           ].map((item) => {
             const Icon = item.icon
@@ -175,7 +189,7 @@ export default function App() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-surface-800 text-xs text-surface-500 shrink-0">
+        <div className="p-4 border-t border-surface-800 text-sm text-surface-500 shrink-0">
           {!sidebarCollapsed && (
             <div className="flex flex-col gap-1">
               <div>Version {APP_VERSION}</div>
@@ -200,7 +214,7 @@ export default function App() {
 
             {/* Active profile badge in topbar */}
             {activeProfileData && (
-              <div className="hidden sm:flex items-center gap-2 bg-surface-800 border border-surface-700 px-3 py-1 rounded-full text-xs text-surface-300">
+              <div className="hidden sm:flex items-center gap-2 bg-surface-800 border border-surface-700 px-3 py-1 rounded-full text-sm text-surface-300">
                 <span className="h-2 w-2 rounded-full bg-green-500" />
                 <span>Instance: <strong>{activeProfileData.label}</strong></span>
                 <span className="text-surface-500">({activeProfileData.url})</span>
@@ -221,7 +235,7 @@ export default function App() {
             </button>
 
             {/* Local LLM Autodiscovery Status */}
-            <div className="flex items-center gap-2 bg-surface-850 px-3 py-1 rounded-lg border border-surface-800 text-xs">
+            <div className="flex items-center gap-2 bg-surface-850 px-3 py-1 rounded-lg border border-surface-800 text-sm">
               <Cpu className="h-4 w-4 text-amber-500" />
               {localLlmStatus === 'detected' ? (
                 <span className="text-green-400">AI: {localLlmModel}</span>
@@ -239,7 +253,7 @@ export default function App() {
               <select
                 value={activeProfile || ''}
                 onChange={(e) => setActiveProfile(e.target.value)}
-                className="bg-surface-800 border border-surface-700 rounded-lg text-xs px-3 py-1.5 text-surface-200 focus:outline-none focus:border-primary-500"
+                className="bg-surface-800 border border-surface-700 rounded-lg text-sm px-3 py-1.5 text-surface-200 focus:outline-none focus:border-primary-500"
               >
                 <option value="" disabled>Select Profile...</option>
                 {Object.entries(profiles).map(([name, p]) => (
@@ -267,19 +281,21 @@ export default function App() {
 
               {/* GPU Opportunity Banner */}
               {localLlmStatus === 'not_detected' && (
-                <div className="bg-gradient-to-r from-amber-500/10 to-primary-600/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4 animate-fade-in">
+                <div
+                  data-testid="onboarding-cue"
+                  className="bg-gradient-to-r from-amber-500/10 to-primary-600/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4 animate-fade-in">
                   <div className="flex items-start gap-3">
                     <Sparkles className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-semibold text-sm text-amber-400">High-Performance GPU Detected?</h4>
-                      <p className="text-xs text-surface-400 mt-0.5">
+                      <p className="text-sm text-surface-400 mt-0.5">
                         Unlock local intelligence features for free. Install **Ollama** or **LM Studio** on port 11434/1234, and this webapp will automatically bind for code summarization and PR reviews.
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => window.open('https://ollama.com', '_blank')}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-surface-950 text-xs font-semibold rounded-lg shrink-0 transition-colors"
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-surface-950 text-sm font-semibold rounded-lg shrink-0 transition-colors"
                   >
                     Download Ollama
                   </button>
@@ -289,41 +305,41 @@ export default function App() {
               {/* KPI Grid */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-surface-900 border border-surface-800 p-4 rounded-xl shadow-lg">
-                  <div className="text-xs text-surface-500 font-medium">ACTIVE PROFILE</div>
+                  <div className="text-sm text-surface-500 font-medium">ACTIVE PROFILE</div>
                   <div className="text-lg font-bold text-surface-200 mt-1 truncate">
                     {activeProfileData ? activeProfileData.label : 'None Configured'}
                   </div>
-                  <div className="text-xs text-surface-400 mt-1 truncate">
+                  <div className="text-sm text-surface-400 mt-1 truncate">
                     {activeProfileData ? activeProfileData.url : 'Set a profile to start'}
                   </div>
                 </div>
 
                 <div className="bg-surface-900 border border-surface-800 p-4 rounded-xl shadow-lg">
-                  <div className="text-xs text-surface-500 font-medium">REPOSITORIES</div>
+                  <div className="text-sm text-surface-500 font-medium">REPOSITORIES</div>
                   <div className="text-2xl font-bold text-primary-500 mt-1">
                     {reposLoading ? '...' : repos.length}
                   </div>
-                  <div className="text-xs text-surface-400 mt-1">
+                  <div className="text-sm text-surface-400 mt-1">
                     {activeProfile ? 'Loaded from profile' : 'N/A'}
                   </div>
                 </div>
 
                 <div className="bg-surface-900 border border-surface-800 p-4 rounded-xl shadow-lg">
-                  <div className="text-xs text-surface-500 font-medium">ONLINE RUNNERS</div>
+                  <div className="text-sm text-surface-500 font-medium">ONLINE RUNNERS</div>
                   <div className="text-2xl font-bold text-green-500 mt-1">
                     {runnersLoading ? '...' : runners.filter(r => r.status === 'online').length}
                   </div>
-                  <div className="text-xs text-surface-400 mt-1">
+                  <div className="text-sm text-surface-400 mt-1">
                     Total runners: {runners.length}
                   </div>
                 </div>
 
                 <div className="bg-surface-900 border border-surface-800 p-4 rounded-xl shadow-lg">
-                  <div className="text-xs text-surface-500 font-medium">LOCAL COPILOT</div>
+                  <div className="text-sm text-surface-500 font-medium">LOCAL COPILOT</div>
                   <div className="text-lg font-bold text-amber-500 mt-1 truncate">
                     {localLlmStatus === 'detected' ? localLlmModel : 'Disabled'}
                   </div>
-                  <div className="text-xs text-surface-400 mt-1 truncate">
+                  <div className="text-sm text-surface-400 mt-1 truncate">
                     {localLlmStatus === 'detected' ? localLlmUrl : 'No local engine running'}
                   </div>
                 </div>
@@ -341,25 +357,25 @@ export default function App() {
                   {activeProfileData ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-surface-400">Endpoint URL</span>
-                        <code className="text-xs text-primary-400 bg-surface-950 px-2.5 py-1 rounded">{activeProfileData.url}</code>
+                        <span className="text-sm text-surface-400">Endpoint URL</span>
+                        <code className="text-sm text-primary-400 bg-surface-950 px-2.5 py-1 rounded">{activeProfileData.url}</code>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-surface-400">Active Profile Key</span>
-                        <code className="text-xs text-surface-300 bg-surface-950 px-2.5 py-1 rounded">{activeProfile}</code>
+                        <span className="text-sm text-surface-400">Active Profile Key</span>
+                        <code className="text-sm text-surface-300 bg-surface-950 px-2.5 py-1 rounded">{activeProfile}</code>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-surface-400">Connection Status</span>
-                        <div className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
+                        <span className="text-sm text-surface-400">Connection Status</span>
+                        <div className="flex items-center gap-1.5 text-sm text-green-400 font-medium">
                           <span className="h-2 w-2 rounded-full bg-green-500" />
                           <span>Connected (HTTP 200)</span>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-surface-500 text-xs">
+                    <div className="text-center py-6 text-surface-500 text-sm">
                       No active instance configured. Navigate to "Profiles" to add one.
                     </div>
                   )}
@@ -371,10 +387,10 @@ export default function App() {
                     <Info className="h-4 w-4 text-primary-500" />
                     WHAT IS FORGEJO?
                   </h3>
-                  <p className="text-xs text-surface-400 leading-relaxed">
+                  <p className="text-sm text-surface-400 leading-relaxed">
                     Forgejo is a community-driven fork of Gitea, hosted under the non-profit *Codeberg e.V.*
                   </p>
-                  <p className="text-xs text-surface-400 leading-relaxed">
+                  <p className="text-sm text-surface-400 leading-relaxed">
                     It provides a lightweight, GPLv3-licensed, self-hosted repository collaboration platform containing issues, pull requests, package registries, and GitHub-compatible runner actions.
                   </p>
                 </div>
@@ -392,10 +408,10 @@ export default function App() {
                   CONFIGURED PROFILES
                 </h3>
 
-                {profilesLoading && <div className="text-center py-6 text-xs text-surface-500">Loading profiles...</div>}
+                {profilesLoading && <div className="text-center py-6 text-sm text-surface-500">Loading profiles...</div>}
 
                 {Object.keys(profiles).length === 0 && !profilesLoading && (
-                  <div className="text-center py-8 text-xs text-surface-500">
+                  <div className="text-center py-8 text-sm text-surface-500">
                     No profiles configured. Use the form on the right to register your first connection profile.
                   </div>
                 )}
@@ -421,14 +437,14 @@ export default function App() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-surface-500 truncate max-w-xs sm:max-w-md">{p.url}</div>
+                          <div className="text-sm text-surface-500 truncate max-w-xs sm:max-w-md">{p.url}</div>
                         </div>
 
                         <div className="flex items-center gap-2">
                           {!isActive && (
                             <button
                               onClick={() => setActiveProfile(name)}
-                              className="px-2.5 py-1.5 bg-surface-800 hover:bg-surface-700 text-surface-300 hover:text-surface-100 text-xs font-semibold rounded transition-colors"
+                              className="px-2.5 py-1.5 bg-surface-800 hover:bg-surface-700 text-surface-300 hover:text-surface-100 text-sm font-semibold rounded transition-colors"
                             >
                               Activate
                             </button>
@@ -455,62 +471,62 @@ export default function App() {
 
                 <form onSubmit={handleAddProfile} className="space-y-4">
                   <div>
-                    <label className="block text-xs text-surface-400 font-medium mb-1.5">Profile Key Slug</label>
+                    <label className="block text-sm text-surface-400 font-medium mb-1.5">Profile Key Slug</label>
                     <input
                       type="text"
                       placeholder="e.g. local-dev"
                       data-testid="profile-key"
                       value={profName}
                       onChange={(e) => setProfName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-xs text-surface-200 focus:outline-none focus:border-primary-500"
+                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-surface-400 font-medium mb-1.5">Display Label</label>
+                    <label className="block text-sm text-surface-400 font-medium mb-1.5">Display Label</label>
                     <input
                       type="text"
                       placeholder="e.g. Local Server"
                       data-testid="profile-label"
                       value={profLabel}
                       onChange={(e) => setProfLabel(e.target.value)}
-                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-xs text-surface-200 focus:outline-none focus:border-primary-500"
+                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-surface-400 font-medium mb-1.5">Instance Base URL</label>
+                    <label className="block text-sm text-surface-400 font-medium mb-1.5">Instance Base URL</label>
                     <input
                       type="text"
                       placeholder="e.g. http://localhost:3000 or https://codeberg.org"
                       data-testid="profile-url"
                       value={profUrl}
                       onChange={(e) => setProfUrl(e.target.value)}
-                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-xs text-surface-200 focus:outline-none focus:border-primary-500"
+                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-surface-400 font-medium mb-1.5">Personal Access Token (PAT)</label>
+                    <label className="block text-sm text-surface-400 font-medium mb-1.5">Personal Access Token (PAT)</label>
                     <input
                       type="password"
                       placeholder="Enter Forgejo API Token"
                       data-testid="profile-token"
                       value={profToken}
                       onChange={(e) => setProfToken(e.target.value)}
-                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-xs text-surface-200 focus:outline-none focus:border-primary-500"
+                      className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
                     />
                   </div>
 
                   {formError && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg">
                       <AlertCircle className="h-4 w-4 shrink-0" />
                       <span>{formError}</span>
                     </div>
                   )}
 
                   {formSuccess && (
-                    <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-500/10 border border-green-500/20 p-2.5 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-sm text-green-400 bg-green-500/10 border border-green-500/20 p-2.5 rounded-lg">
                       <Check className="h-4 w-4 shrink-0" />
                       <span>{formSuccess}</span>
                     </div>
@@ -519,7 +535,7 @@ export default function App() {
                   <button
                     type="submit"
                     data-testid="profile-add"
-                    className="w-full flex items-center justify-center gap-2 py-2 bg-primary-500 hover:bg-primary-600 text-surface-950 font-bold rounded-lg text-xs tracking-wider transition-colors shadow-lg shadow-primary-500/25"
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-primary-500 hover:bg-primary-600 text-surface-950 font-bold rounded-lg text-sm tracking-wider transition-colors shadow-lg shadow-primary-500/25"
                   >
                     <Plus className="h-4 w-4" />
                     REGISTER PROFILE
@@ -534,7 +550,7 @@ export default function App() {
             <div className="space-y-6">
 
               {!activeProfile && (
-                <div className="bg-surface-900 border border-surface-800 rounded-xl p-8 text-center text-xs text-surface-500">
+                <div className="bg-surface-900 border border-surface-800 rounded-xl p-8 text-center text-sm text-surface-500">
                   Select an active profile in the top bar to view repositories.
                 </div>
               )}
@@ -551,11 +567,11 @@ export default function App() {
                       </button>
                     </h3>
 
-                    {reposLoading && <div className="text-center py-6 text-xs text-surface-500">Loading repositories...</div>}
-                    {reposError && <div className="text-xs text-red-400 text-center py-4 bg-red-500/5 rounded">{reposError}</div>}
+                    {reposLoading && <div className="text-center py-6 text-sm text-surface-500">Loading repositories...</div>}
+                    {reposError && <div className="text-sm text-red-400 text-center py-4 bg-red-500/5 rounded">{reposError}</div>}
 
                     {!reposLoading && repos.length === 0 && (
-                      <div className="text-center py-8 text-xs text-surface-500">No repositories found.</div>
+                      <div className="text-center py-8 text-sm text-surface-500">No repositories found.</div>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
@@ -571,9 +587,9 @@ export default function App() {
                                 : 'bg-surface-900 border-surface-800 hover:border-surface-700'
                             }`}
                           >
-                            <span className="font-semibold text-xs tracking-wider text-surface-200 block truncate">{r.name}</span>
+                            <span className="font-semibold text-sm tracking-wider text-surface-200 block truncate">{r.name}</span>
                             <span className="text-[10px] text-surface-500 block truncate">Owner: @{r.owner.username}</span>
-                            <span className="text-xs text-surface-400 mt-2 line-clamp-2 min-h-[2rem]">
+                            <span className="text-sm text-surface-400 mt-2 line-clamp-2 min-h-[2rem]">
                               {r.description || 'No description provided.'}
                             </span>
                             <div className="flex items-center gap-2 mt-3 text-[10px] text-surface-500">
@@ -594,7 +610,7 @@ export default function App() {
                     </h3>
 
                     {selectedRepo ? (
-                      <div className="space-y-5 text-xs text-surface-400">
+                      <div className="space-y-5 text-sm text-surface-400">
                         <div>
                           <span className="font-semibold text-sm text-surface-100 block">{selectedRepo.full_name}</span>
                           <a
@@ -639,7 +655,7 @@ export default function App() {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-surface-500 text-xs italic">
+                      <div className="text-center py-12 text-surface-500 text-sm italic">
                         Select a repository from the grid to view details.
                       </div>
                     )}
@@ -655,7 +671,7 @@ export default function App() {
             <div className="space-y-6">
 
               {!activeProfile && (
-                <div className="bg-surface-900 border border-surface-800 rounded-xl p-8 text-center text-xs text-surface-500">
+                <div className="bg-surface-900 border border-surface-800 rounded-xl p-8 text-center text-sm text-surface-500">
                   Select an active profile in the top bar to inspect runners.
                 </div>
               )}
@@ -671,11 +687,11 @@ export default function App() {
                       </button>
                     </h3>
 
-                    {runnersLoading && <div className="text-center py-6 text-xs text-surface-500">Loading runner agents...</div>}
-                    {runnersError && <div className="text-xs text-red-400 text-center py-4 bg-red-500/5 rounded">{runnersError}</div>}
+                    {runnersLoading && <div className="text-center py-6 text-sm text-surface-500">Loading runner agents...</div>}
+                    {runnersError && <div className="text-sm text-red-400 text-center py-4 bg-red-500/5 rounded">{runnersError}</div>}
 
                     {!runnersLoading && runners.length === 0 && (
-                      <div className="text-center py-8 text-xs text-surface-500">
+                      <div className="text-center py-8 text-sm text-surface-500">
                         No runners configured on instance. Make sure you register a `forgejo-runner` to the instance.
                       </div>
                     )}
@@ -684,7 +700,7 @@ export default function App() {
                       {runners.map((r) => (
                         <div key={r.id} className="bg-surface-850 border border-surface-800 rounded-xl p-4 flex flex-col gap-2">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs tracking-wider text-surface-200">{r.name}</span>
+                            <span className="font-semibold text-sm tracking-wider text-surface-200">{r.name}</span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                               r.status === 'online' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
                             }`}>
@@ -712,17 +728,38 @@ export default function App() {
             </div>
           )}
 
+          {/* Inbox Page */}
+          {activeView === 'inbox' && <InboxPage />}
+
+          {/* Tools Page */}
+          {activeView === 'tools' && <ToolsPage />}
+
+          {/* Skills Page */}
+          {activeView === 'skills' && <SkillsPage />}
+
+          {/* Chat Page */}
+          {activeView === 'chat' && <ChatPage />}
+
+          {/* Settings Page */}
+          {activeView === 'settings' && <SettingsPage />}
+
+          {/* Logs Page */}
+          {activeView === 'logs' && <LogsPage />}
+
+          {/* Help Page */}
+          {activeView === 'help' && <HelpPage />}
+
           {/* API Docs Page */}
           {activeView === 'apidocs' && (
             <div className="bg-surface-900 border border-surface-800 rounded-xl shadow-lg h-[80vh] flex flex-col overflow-hidden">
               <div className="p-4 border-b border-surface-800 bg-surface-850 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2 text-xs text-surface-400">
+                <div className="flex items-center gap-2 text-sm text-surface-400">
                   <BookOpen className="h-4 w-4 text-primary-500" />
                    <span>FastAPI Swagger Introspection (Backend :11133)</span>
                 </div>
                 <button
                   onClick={() => window.open(DOCS_PATH, '_blank')}
-                  className="text-xs text-primary-500 hover:text-primary-400 font-semibold inline-flex items-center gap-1.5"
+                  className="text-sm text-primary-500 hover:text-primary-400 font-semibold inline-flex items-center gap-1.5"
                 >
                   Open in New Tab <ExternalLink className="h-3 w-3" />
                 </button>

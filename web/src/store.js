@@ -26,6 +26,39 @@ export const useAppStore = create((set, get) => ({
   workflowsLoading: false,
   workflowsError: null,
 
+  // Service Status State
+  serviceStatus: null,
+  serviceStatusLoading: false,
+
+  // Notifications (Inbox) State
+  notifications: [],
+  notificationsLoading: false,
+  notificationsError: null,
+  notificationsUnreadOnly: true,
+
+  // Tools & Skills State
+  toolDetails: [],
+  toolsLoading: false,
+  toolsError: null,
+  skillData: null,
+  skillsLoading: false,
+  skillsError: null,
+
+  // Logs State
+  logs: [],
+  logsCount: 0,
+  logsLoading: false,
+  logsError: null,
+  logsLevel: 'INFO',
+  logsSearch: '',
+
+  // Local LLM State (backend-proxied discovery)
+  llmProviders: [],
+  llmLoading: false,
+  llmError: null,
+  selectedProvider: (() => { try { return localStorage.getItem('llm_provider') || '' } catch { return '' } })(),
+  selectedModel: (() => { try { return localStorage.getItem('llm_model') || '' } catch { return '' } })(),
+
   // Selection
   selectedRepo: null,
 
@@ -167,6 +200,79 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
+  // --- Service Status ---
+  fetchServiceStatus: async () => {
+    set({ serviceStatusLoading: true });
+    try {
+      const res = await fetch('/api/status');
+      set({ serviceStatus: await res.json(), serviceStatusLoading: false });
+    } catch {
+      set({ serviceStatus: null, serviceStatusLoading: false });
+    }
+  },
+
+  // --- Notifications (Inbox) ---
+  fetchNotifications: async () => {
+    const active = get().activeProfile;
+    if (!active) return;
+    set({ notificationsLoading: true, notificationsError: null });
+    try {
+      const unread = get().notificationsUnreadOnly;
+      const res = await fetch(`/api/notifications?profile=${active}&unread_only=${unread}`);
+      const payload = await res.json();
+      if (payload.success) {
+        set({ notifications: payload.data || [], notificationsLoading: false });
+      } else {
+        set({ notificationsError: payload.error || 'Failed to load notifications', notificationsLoading: false });
+      }
+    } catch (err) {
+      set({ notificationsError: err.message, notificationsLoading: false });
+    }
+  },
+  setNotificationsUnreadOnly: (value) => {
+    set({ notificationsUnreadOnly: value });
+    get().fetchNotifications();
+  },
+
+  // --- Tools & Skills ---
+  fetchTools: async () => {
+    set({ toolsLoading: true, toolsError: null });
+    try {
+      const res = await fetch('/api/capabilities');
+      const data = await res.json();
+      set({ toolDetails: data.tool_details || [], toolsLoading: false });
+    } catch (err) {
+      set({ toolsError: err.message, toolsLoading: false });
+    }
+  },
+  fetchSkills: async () => {
+    set({ skillsLoading: true, skillsError: null });
+    try {
+      const res = await fetch('/api/skills');
+      set({ skillData: await res.json(), skillsLoading: false });
+    } catch (err) {
+      set({ skillsError: err.message, skillsLoading: false });
+    }
+  },
+
+  // --- Logs ---
+  fetchLogs: async () => {
+    set({ logsLoading: true, logsError: null });
+    try {
+      const { logsLevel, logsSearch } = get();
+      const res = await fetch(`/api/logs?level=${logsLevel}&search=${encodeURIComponent(logsSearch)}&limit=100`);
+      const data = await res.json();
+      set({ logs: data.logs || [], logsCount: data.count || 0, logsLoading: false });
+    } catch (err) {
+      set({ logsError: err.message, logsLoading: false });
+    }
+  },
+  setLogsLevel: (level) => {
+    set({ logsLevel: level });
+    get().fetchLogs();
+  },
+  setLogsSearch: (search) => set({ logsSearch: search }),
+
   // --- Select Repository ---
   selectRepo: (repo) => {
     set({ selectedRepo: repo, workflows: [], workflowsError: null });
@@ -175,43 +281,63 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
-  // --- Local LLM Autodiscovery ---
-  detectLocalLlm: async () => {
-    set({ localLlmStatus: 'checking' });
-    const ports = [11434, 1234, 8000]; // Ollama, LM Studio, vLLM
-
-    for (const port of ports) {
-      try {
-        // Use proxy or direct fetch to check port. Direct fetch from browser is fine for local dev
-        const url = `http://127.0.0.1:${port}`;
-        // Ollama specific check
-        if (port === 11434) {
-          const res = await fetch(`${url}/api/tags`, { mode: 'cors' });
-          if (res.ok) {
-            const data = await res.json();
-            const models = data.models || [];
-            const modelName = models.length > 0 ? models[0].name : 'Llama/Gemma';
-            set({
-              localLlmStatus: 'detected',
-              localLlmUrl: url,
-              localLlmModel: `Ollama (${modelName})`
-            });
-            return;
-          }
-        } else {
-          // Standard check (general health or root)
-          await fetch(url, { mode: 'no-cors' });
-          set({
-            localLlmStatus: 'detected',
-            localLlmUrl: url,
-            localLlmModel: port === 1234 ? 'LM Studio' : 'vLLM/Local'
-          });
-          return;
+  // --- Local LLM Autodiscovery (backend proxy - keys never leave the server) ---
+  fetchLlmProviders: async () => {
+    set({ llmLoading: true, llmError: null, localLlmStatus: 'checking' });
+    try {
+      const res = await fetch('/api/llm/discover');
+      const data = await res.json();
+      const providers = data.providers || [];
+      const detected = providers.filter((p) => p.detected);
+      const prevProvider = get().selectedProvider;
+      const prevModel = get().selectedModel;
+      const provider = providers.find((p) => p.id === prevProvider) || detected[0] || providers[0] || null;
+      let model = '';
+      if (provider) {
+        model = provider.models.includes(prevModel) ? prevModel : (provider.models[0] || '');
+        try {
+          localStorage.setItem('llm_provider', provider.id);
+          localStorage.setItem('llm_model', model);
+        } catch {
+          // ignore storage errors
         }
-      } catch {
-        // Continue scanning next port
       }
+      const firstModel = detected.length > 0
+        ? (detected[0].models[0] || detected[0].name)
+        : '';
+      set({
+        llmProviders: providers,
+        selectedProvider: provider ? provider.id : '',
+        selectedModel: model,
+        llmLoading: false,
+        localLlmStatus: detected.length > 0 ? 'detected' : 'not_detected',
+        localLlmUrl: detected.length > 0 ? detected[0].url : '',
+        localLlmModel: detected.length > 0 ? `${detected[0].name} (${firstModel})` : ''
+      });
+    } catch (err) {
+      set({ llmError: err.message, llmLoading: false, localLlmStatus: 'not_detected' });
     }
-    set({ localLlmStatus: 'not_detected', localLlmUrl: '', localLlmModel: '' });
+  },
+  setLlmProvider: (providerId) => {
+    const provider = get().llmProviders.find((p) => p.id === providerId);
+    const model = provider ? (provider.models[0] || '') : '';
+    try {
+      localStorage.setItem('llm_provider', providerId);
+      localStorage.setItem('llm_model', model);
+    } catch {
+      // ignore storage errors
+    }
+    set({ selectedProvider: providerId, selectedModel: model });
+  },
+  setLlmModel: (model) => {
+    try {
+      localStorage.setItem('llm_model', model);
+    } catch {
+      // ignore storage errors
+    }
+    set({ selectedModel: model });
+  },
+  detectLocalLlm: async () => {
+    await get().fetchLlmProviders();
   }
 }))
