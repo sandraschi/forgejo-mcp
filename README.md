@@ -24,6 +24,22 @@ FastMCP server + React companion for **Forgejo** and **Codeberg** — multi-prof
 
 ## Quick start
 
+Claude Desktop (Windows) one-liner — installs `uv` if missing, registers the bundle:
+
+```powershell
+irm https://github.com/sandraschi/forgejo-mcp/releases/latest/download/install.ps1 | iex
+```
+
+Every other MCP client (Cursor, VS Code, Claude Code, opencode) via `uvx`:
+
+```json
+{ "mcpServers": { "forgejo": {
+  "command": "uvx", "args": ["--from", "git+https://github.com/sandraschi/forgejo-mcp", "forgejo-mcp"]
+} } }
+```
+
+From source (developers):
+
 ```powershell
 git clone https://github.com/sandraschi/forgejo-mcp
 cd forgejo-mcp

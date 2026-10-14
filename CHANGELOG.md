@@ -22,6 +22,11 @@ Update saved MCP tool calls; REST API is unchanged.
   Logs (ring buffer), Help — 12 views; `text-xs` eliminated
 - Skill rebuild (97 lines, 3 workflows, troubleshooting); Playwright e2e
   (18 specs green) + `just e2e` + CI e2e job
+- MCPB bundle: `mcpb/manifest.json` (stdio via uv, spec-only vars), runtime
+  `mcpb/pyproject.toml`, 256px icon, 3-4-100 prompt corpus (system 3064,
+  user 4033, 100 examples); `just mcpb-pack` packs + smoke-launches clean
+- Fixed: `MCP_TRANSPORT=http` never actually served MCP (bare `mcp.run()` is
+  always stdio) — now explicit `transport="http"` with `MCP_PORT` override
 - Inbound webhook receiver `POST /api/webhooks/forgejo` (HMAC-SHA256,
   `FORGEJO_WEBHOOK_SECRET`) + `GET /api/webhooks/events` delivery log
 - Saved-call refresh: mirror project pages (mcp-central-docs, documentation-mcp),

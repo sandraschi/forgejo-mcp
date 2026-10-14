@@ -998,8 +998,11 @@ def main():
     logger.info(f"FastAPI Companion WebApp running on http://{WEB_HOST}:{WEB_PORT}")
 
     if transport == "http":
-        logger.info("Running MCP Server in HTTP transport mode (blocking)")
-        mcp.run()
+        # MCP_PORT override exists for the MCPB launch-check sandbox (arbitrary
+        # high port); default keeps the fleet-registered backend port.
+        http_port = int(os.getenv("MCP_PORT", str(WEB_PORT)))
+        logger.info(f"Running MCP Server in HTTP transport mode on {WEB_HOST}:{http_port} (blocking)")
+        mcp.run(transport="http", host=WEB_HOST, port=http_port)
     else:
         logger.info("Running MCP Server in STDIO transport mode (blocking)")
         # Block on stdio transport async loop

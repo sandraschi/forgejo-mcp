@@ -52,6 +52,9 @@ $RECYCLE.BIN/
 *.bak
 *.bak.*
 
+# MCPB staging (build artifact, wiped + recopied on every pack)
+mcpb/src/
+
 # MCPB distributables (built artifacts, never commit)
 *.mcpb
 
