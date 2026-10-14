@@ -1,0 +1,12 @@
+# forgejo-mcp — Cursor rules (see AGENTS.md, session_context_injection.md)
+
+Use `uv run python -m forgejo_mcp` to start; ports 11132 (web) / 11133 (API).
+Never point this server at GitHub.com (that is git-github-mcp).
+
+## Session Context (forgejo-mcp)
+
+Before starting work: call `forgejo_status` (health + active profile) and
+`forgejo_profile_list` (instances). Pass `profile` explicitly off-active.
+Prefer read-only checks (`forgejo_repo_search`, `forgejo_pr_diff`) before
+create/merge/comment. Ports are 11132/11133, never 10760/10761.
+At end of work: commit on a clean tree; never commit PATs or `.env.profiles.json`.

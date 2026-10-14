@@ -1,0 +1,7 @@
+{
+  "name": "forgejo-mcp",
+  "description": "Forgejo/Codeberg integration: profiles, repos, issues, PRs, runners.",
+  "version": "0.1.0",
+  "author": "sandraschi",
+  "hooks": "./hooks/hooks.json"
+}
