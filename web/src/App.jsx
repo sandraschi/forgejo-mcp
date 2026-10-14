@@ -26,7 +26,7 @@ import {
   Wrench
 } from 'lucide-react'
 import { useAppStore } from './store'
-import { ChatPage, HelpPage, InboxPage, LogsPage, SettingsPage, SkillsPage, ToolsPage } from './pages'
+import { ChatPage, HelpPage, InboxPage, LogsPage, NewRepoDialog, RepoDetail, SettingsPage, SkillsPage, ToolsPage } from './pages'
 
 // EXPERIMENTAL light mode (invert hack). Not fleet standard - see index.css.
 // Toggling `.dark` off the root flips the invert filter; persisted so the
@@ -69,6 +69,7 @@ export default function App() {
     runnersLoading,
     runnersError,
     workflows,
+    workflowsLoading,
     selectedRepo,
     localLlmStatus,
     localLlmUrl,
@@ -92,6 +93,7 @@ export default function App() {
   const [profLabel, setProfLabel] = useState('')
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+  const [showNewRepo, setShowNewRepo] = useState(false)
 
   useEffect(() => {
     fetchProfiles()
@@ -562,9 +564,19 @@ export default function App() {
                   <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg lg:col-span-2 space-y-4">
                     <h3 className="font-semibold text-sm tracking-wider text-surface-300 border-b border-surface-800 pb-2 flex items-center justify-between">
                       <span>REPOSITORIES ({repos.length})</span>
-                      <button onClick={fetchRepos} className="p-1 rounded bg-surface-850 hover:bg-surface-800 text-surface-400">
-                        <RefreshCw className="h-3.5 w-3.5" />
-                      </button>
+                      <span className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setShowNewRepo(true)}
+                          data-testid="repo-create-open"
+                          title="New repository"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> New
+                        </button>
+                        <button onClick={fetchRepos} className="p-1 rounded bg-surface-850 hover:bg-surface-800 text-surface-400">
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
                     </h3>
 
                     {reposLoading && <div className="text-center py-6 text-sm text-surface-500">Loading repositories...</div>}
@@ -609,60 +621,12 @@ export default function App() {
                       REPOSITORY DRILL-DOWN
                     </h3>
 
-                    {selectedRepo ? (
-                      <div className="space-y-5 text-sm text-surface-400">
-                        <div>
-                          <span className="font-semibold text-sm text-surface-100 block">{selectedRepo.full_name}</span>
-                          <a
-                            href={selectedRepo.html_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary-500 hover:underline inline-flex items-center gap-1.5 mt-1"
-                          >
-                            Open in Forgejo <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-
-                        <div className="space-y-2 border-t border-surface-800 pt-3">
-                          <span className="font-medium text-surface-300 block">Actions workflows runs:</span>
-                          {workflowsLoading && <div className="text-surface-500">Fetching runs...</div>}
-                          {workflows.length === 0 && !workflowsLoading && (
-                            <div className="text-surface-500 italic">No workflow runs found.</div>
-                          )}
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                            {workflows.slice(0, 5).map((run) => (
-                              <div key={run.id} className="flex items-center justify-between bg-surface-950 p-2 rounded">
-                                <span className="truncate max-w-[10rem] font-mono text-[10px]">{run.title}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                                  run.conclusion === 'success'
-                                    ? 'bg-green-500/10 text-green-400'
-                                    : run.conclusion === 'failure'
-                                    ? 'bg-red-500/10 text-red-400'
-                                    : 'bg-yellow-500/10 text-yellow-400'
-                                }`}>
-                                  {run.conclusion || run.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 border-t border-surface-800 pt-3">
-                          <span className="font-medium text-surface-300 block">Clone Commands:</span>
-                          <pre className="bg-surface-950 p-2.5 rounded font-mono text-[10px] text-surface-300 overflow-x-auto select-all">
-                            git clone {selectedRepo.clone_url}
-                          </pre>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-surface-500 text-sm italic">
-                        Select a repository from the grid to view details.
-                      </div>
-                    )}
+                    <RepoDetail workflows={workflows} workflowsLoading={workflowsLoading} />
                   </div>
 
                 </div>
               )}
+              <NewRepoDialog open={showNewRepo} onClose={() => setShowNewRepo(false)} />
             </div>
           )}
 

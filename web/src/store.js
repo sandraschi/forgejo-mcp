@@ -51,6 +51,26 @@ export const useAppStore = create((set, get) => ({
   logsError: null,
   logsLevel: 'INFO',
   logsSearch: '',
+  webhookEvents: [],
+  webhookLoading: false,
+  webhookError: null,
+
+  // Repo Detail State (Issues / Pulls / Files tabs)
+  repoIssues: [],
+  repoIssuesLoading: false,
+  repoIssuesError: null,
+  repoIssuesState: 'open',
+  repoPulls: [],
+  repoPullsLoading: false,
+  repoPullsError: null,
+  repoPullsState: 'open',
+  filePath: 'README.md',
+  fileRef: 'main',
+  fileContent: '',
+  fileLoading: false,
+  fileError: null,
+  mutationError: null,
+  mutationOk: '',
 
   // Local LLM State (backend-proxied discovery)
   llmProviders: [],
@@ -273,11 +293,245 @@ export const useAppStore = create((set, get) => ({
   },
   setLogsSearch: (search) => set({ logsSearch: search }),
 
+  // --- Webhook Deliveries ---
+  fetchWebhookEvents: async () => {
+    set({ webhookLoading: true, webhookError: null });
+    try {
+      const res = await fetch('/api/webhooks/events?limit=50');
+      const data = await res.json();
+      set({ webhookEvents: data.events || [], webhookLoading: false });
+    } catch (err) {
+      set({ webhookError: err.message, webhookLoading: false });
+    }
+  },
+
   // --- Select Repository ---
   selectRepo: (repo) => {
-    set({ selectedRepo: repo, workflows: [], workflowsError: null });
+    set({
+      selectedRepo: repo,
+      workflows: [],
+      workflowsError: null,
+      repoIssues: [],
+      repoIssuesError: null,
+      repoPulls: [],
+      repoPullsError: null,
+      fileContent: '',
+      fileError: null,
+      mutationError: null,
+      mutationOk: ''
+    });
     if (repo) {
       get().fetchWorkflows(repo.owner.username, repo.name);
+      get().fetchRepoIssues();
+      get().fetchRepoPulls();
+    }
+  },
+
+  _repoCoords: () => {
+    const repo = get().selectedRepo;
+    if (!repo || !repo.full_name) return null;
+    const [owner, name] = repo.full_name.split('/');
+    return { owner, repo: name, profile: get().activeProfile };
+  },
+
+  // --- Repo Issues Tab ---
+  fetchRepoIssues: async () => {
+    const coords = get()._repoCoords();
+    if (!coords) return;
+    set({ repoIssuesLoading: true, repoIssuesError: null });
+    try {
+      const res = await fetch(
+        `/api/issues?owner=${coords.owner}&repo=${coords.repo}&state=${get().repoIssuesState}&profile=${coords.profile}`
+      );
+      const payload = await res.json();
+      if (payload.success) {
+        set({ repoIssues: payload.data || [], repoIssuesLoading: false });
+      } else {
+        set({ repoIssuesError: payload.error || 'Failed to load issues', repoIssuesLoading: false });
+      }
+    } catch (err) {
+      set({ repoIssuesError: err.message, repoIssuesLoading: false });
+    }
+  },
+  setRepoIssuesState: (state) => {
+    set({ repoIssuesState: state });
+    get().fetchRepoIssues();
+  },
+  createIssue: async (title, body) => {
+    const coords = get()._repoCoords();
+    if (!coords) return false;
+    set({ mutationError: null, mutationOk: '' });
+    try {
+      const res = await fetch('/api/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coords, title, body: body || '' })
+      });
+      const payload = await res.json();
+      if (payload.success) {
+        set({ mutationOk: `Issue #${payload.data?.number ?? '?'} created.` });
+        await get().fetchRepoIssues();
+        return true;
+      }
+      set({ mutationError: payload.error || 'Failed to create issue' });
+      return false;
+    } catch (err) {
+      set({ mutationError: err.message });
+      return false;
+    }
+  },
+  commentOnIssue: async (index, body) => {
+    const coords = get()._repoCoords();
+    if (!coords) return false;
+    set({ mutationError: null, mutationOk: '' });
+    try {
+      const res = await fetch('/api/issues/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coords, index, body })
+      });
+      const payload = await res.json();
+      if (payload.success) {
+        set({ mutationOk: `Comment posted on #${index}.` });
+        await get().fetchRepoIssues();
+        return true;
+      }
+      set({ mutationError: payload.error || 'Failed to post comment' });
+      return false;
+    } catch (err) {
+      set({ mutationError: err.message });
+      return false;
+    }
+  },
+
+  // --- Repo Pulls Tab ---
+  fetchRepoPulls: async () => {
+    const coords = get()._repoCoords();
+    if (!coords) return;
+    set({ repoPullsLoading: true, repoPullsError: null });
+    try {
+      const res = await fetch(
+        `/api/pulls?owner=${coords.owner}&repo=${coords.repo}&state=${get().repoPullsState}&profile=${coords.profile}`
+      );
+      const payload = await res.json();
+      if (payload.success) {
+        set({ repoPulls: payload.data || [], repoPullsLoading: false });
+      } else {
+        set({ repoPullsError: payload.error || 'Failed to load pull requests', repoPullsLoading: false });
+      }
+    } catch (err) {
+      set({ repoPullsError: err.message, repoPullsLoading: false });
+    }
+  },
+  setRepoPullsState: (state) => {
+    set({ repoPullsState: state });
+    get().fetchRepoPulls();
+  },
+  createPr: async ({ title, head, base, body }) => {
+    const coords = get()._repoCoords();
+    if (!coords) return false;
+    set({ mutationError: null, mutationOk: '' });
+    try {
+      const res = await fetch('/api/pulls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coords, title, head, base, body: body || '' })
+      });
+      const payload = await res.json();
+      if (payload.success) {
+        set({ mutationOk: `PR #${payload.data?.number ?? '?'} opened.` });
+        await get().fetchRepoPulls();
+        return true;
+      }
+      set({ mutationError: payload.error || 'Failed to open pull request' });
+      return false;
+    } catch (err) {
+      set({ mutationError: err.message });
+      return false;
+    }
+  },
+  mergePr: async (index, style) => {
+    const coords = get()._repoCoords();
+    if (!coords) return false;
+    set({ mutationError: null, mutationOk: '' });
+    try {
+      const res = await fetch('/api/pulls/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coords, index, style: style || 'merge' })
+      });
+      const payload = await res.json();
+      if (payload.success) {
+        set({ mutationOk: `PR #${index} merged (${style || 'merge'}).` });
+        await get().fetchRepoPulls();
+        return true;
+      }
+      set({ mutationError: payload.error || 'Failed to merge pull request' });
+      return false;
+    } catch (err) {
+      set({ mutationError: err.message });
+      return false;
+    }
+  },
+  fetchPrDiff: async (index) => {
+    const coords = get()._repoCoords();
+    if (!coords) return '';
+    try {
+      const res = await fetch(
+        `/api/pulls/diff?owner=${coords.owner}&repo=${coords.repo}&index=${index}&profile=${coords.profile}`
+      );
+      const payload = await res.json();
+      return payload.success ? payload.data || '' : `Error: ${payload.error || 'diff unavailable'}`;
+    } catch (err) {
+      return `Error: ${err.message}`;
+    }
+  },
+
+  // --- Repo Files Tab ---
+  setFilePath: (filePath) => set({ filePath }),
+  setFileRef: (fileRef) => set({ fileRef }),
+  fetchFileContent: async () => {
+    const coords = get()._repoCoords();
+    if (!coords) return;
+    set({ fileLoading: true, fileError: null, fileContent: '' });
+    try {
+      const { filePath, fileRef } = get();
+      const res = await fetch(
+        `/api/file?owner=${coords.owner}&repo=${coords.repo}&filepath=${encodeURIComponent(filePath)}&ref=${encodeURIComponent(fileRef)}&profile=${coords.profile}`
+      );
+      const payload = await res.json();
+      if (payload.success) {
+        set({ fileContent: payload.data || '', fileLoading: false });
+      } else {
+        set({ fileError: payload.error || 'Failed to read file', fileLoading: false });
+      }
+    } catch (err) {
+      set({ fileError: err.message, fileLoading: false });
+    }
+  },
+
+  // --- Create Repository ---
+  createRepo: async ({ name, description, isPrivate }) => {
+    const active = get().activeProfile;
+    if (!active) return false;
+    set({ mutationError: null, mutationOk: '' });
+    try {
+      const res = await fetch('/api/repos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: description || '', private: isPrivate, profile: active })
+      });
+      const payload = await res.json();
+      if (payload.success) {
+        set({ mutationOk: `Repository ${payload.data?.full_name ?? name} created.` });
+        await get().fetchRepos();
+        return true;
+      }
+      set({ mutationError: payload.error || 'Failed to create repository' });
+      return false;
+    } catch (err) {
+      set({ mutationError: err.message });
+      return false;
     }
   },
 

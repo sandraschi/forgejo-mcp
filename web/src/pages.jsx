@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   Sparkles,
   Trash2,
+  Webhook,
   Wrench
 } from 'lucide-react'
 import { useAppStore } from './store'
@@ -283,11 +284,14 @@ const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 export function LogsPage() {
   const { logs, logsCount, logsLoading, logsError, logsLevel, logsSearch, setLogsLevel, setLogsSearch, fetchLogs } =
     useAppStore()
+  const { webhookEvents, webhookLoading, webhookError, fetchWebhookEvents } = useAppStore()
   const [autoRefresh, setAutoRefresh] = useState(false)
+  const [tab, setTab] = useState('logs')
 
   useEffect(() => {
     fetchLogs()
-  }, [fetchLogs])
+    fetchWebhookEvents()
+  }, [fetchLogs, fetchWebhookEvents])
 
   useEffect(() => {
     if (!autoRefresh) return undefined
@@ -343,28 +347,77 @@ export function LogsPage() {
         </div>
       }
     >
-      {logsLoading && <LoadingRow text="Loading logs..." />}
-      {logsError && <ErrorRow message={logsError} onRetry={fetchLogs} />}
-      {!logsLoading && !logsError && logs.length === 0 && <EmptyRow text="No log records match." />}
-      <div className="bg-surface-950 border border-surface-800 rounded-xl p-3 space-y-1 max-h-[60vh] overflow-y-auto font-mono">
-        {logs.map((l, i) => (
-          <div key={i} className="text-sm text-surface-300 break-words">
-            <span className="text-surface-600">{l.time}</span>{' '}
-            <span
-              className={
-                l.level === 'ERROR' || l.level === 'CRITICAL'
-                  ? 'text-red-400'
-                  : l.level === 'WARNING'
-                    ? 'text-amber-400'
-                    : 'text-green-400'
-              }
-            >
-              {l.level}
-            </span>{' '}
-            <span className="text-surface-500">{l.logger}</span> {l.message}
-          </div>
+      <div className="flex items-center gap-1 bg-surface-900 border border-surface-800 rounded-lg p-1 w-fit">
+        {[
+          { id: 'logs', label: 'Server logs' },
+          { id: 'webhooks', label: `Webhook deliveries (${webhookEvents.length})` }
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            data-testid={`logs-tab-${t.id}`}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === t.id ? 'bg-surface-700 text-surface-100' : 'text-surface-500 hover:text-surface-300'
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
+
+      {tab === 'logs' && (
+        <>
+          {logsLoading && <LoadingRow text="Loading logs..." />}
+          {logsError && <ErrorRow message={logsError} onRetry={fetchLogs} />}
+          {!logsLoading && !logsError && logs.length === 0 && <EmptyRow text="No log records match." />}
+          <div className="bg-surface-950 border border-surface-800 rounded-xl p-3 space-y-1 max-h-[60vh] overflow-y-auto font-mono">
+            {logs.map((l, i) => (
+              <div key={i} className="text-sm text-surface-300 break-words">
+                <span className="text-surface-600">{l.time}</span>{' '}
+                <span
+                  className={
+                    l.level === 'ERROR' || l.level === 'CRITICAL'
+                      ? 'text-red-400'
+                      : l.level === 'WARNING'
+                        ? 'text-amber-400'
+                        : 'text-green-400'
+                  }
+                >
+                  {l.level}
+                </span>{' '}
+                <span className="text-surface-500">{l.logger}</span> {l.message}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === 'webhooks' && (
+        <>
+          {webhookLoading && <LoadingRow text="Loading webhook deliveries..." />}
+          {webhookError && <ErrorRow message={webhookError} onRetry={fetchWebhookEvents} />}
+          {!webhookLoading && !webhookError && webhookEvents.length === 0 && (
+            <EmptyRow text="No webhook deliveries yet. Point a repo webhook at POST /api/webhooks/forgejo with FORGEJO_WEBHOOK_SECRET." />
+          )}
+          <div className="space-y-3">
+            {webhookEvents.map((e, i) => (
+              <div key={i} className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex items-start gap-3">
+                <Webhook className="h-4 w-4 mt-0.5 shrink-0 text-primary-400" />
+                <div className="min-w-0 text-sm">
+                  <div className="font-medium text-surface-200 break-words">
+                    {e.event} {e.repository && <span className="text-surface-400">· {e.repository}</span>}
+                  </div>
+                  <div className="text-surface-500 mt-1">
+                    {e.time}
+                    {e.sender && ` · by ${e.sender}`}
+                    {e.delivery && ` · ${e.delivery}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </PageShell>
   )
 }
@@ -508,6 +561,53 @@ export function SettingsPage() {
           </p>
         </div>
       </div>
+
+      <ShutdownCard />
+    </div>
+  )
+}
+
+function ShutdownCard() {
+  const [armed, setArmed] = useState(false)
+  const [done, setDone] = useState('')
+  const [failed, setFailed] = useState('')
+
+  const fire = async () => {
+    setFailed('')
+    try {
+      const res = await fetch('/api/shutdown', { method: 'POST' })
+      const data = await res.json()
+      if (data.status === 'shutting_down') {
+        setDone('Shutdown signal accepted — the backend is exiting. Restart it with start.ps1 or the fleet launcher.')
+      } else {
+        setFailed('Unexpected shutdown response.')
+      }
+    } catch {
+      // A failed fetch right after POST usually means the server already exited.
+      setDone('No response — the backend has likely already exited. Restart it with start.ps1 or the fleet launcher.')
+    }
+  }
+
+  return (
+    <div className="bg-surface-900 border border-red-500/30 rounded-xl p-5 space-y-3">
+      <h4 className="font-semibold text-sm text-red-300 border-b border-red-500/20 pb-2">DANGER ZONE</h4>
+      <p className="text-sm text-surface-400">
+        Stop the backend process (orderly exit, in-flight writes flush). The dashboard will go dark until restarted.
+      </p>
+      {done && <div className="text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg">{done}</div>}
+      {failed && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg">{failed}</div>}
+      {!done && (
+        <button
+          onClick={() => (armed ? fire() : setArmed(true))}
+          onBlur={() => setArmed(false)}
+          data-testid="shutdown-backend"
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            armed ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-surface-800 hover:bg-surface-700 text-red-300'
+          }`}
+        >
+          {armed ? 'Click again to confirm shutdown' : 'Shut down backend'}
+        </button>
+      )}
     </div>
   )
 }
@@ -545,6 +645,18 @@ export function HelpPage() {
             <li><code className="text-primary-400">forgejo_prs</code> — list/create/merge/diff pull requests.</li>
             <li><code className="text-primary-400">forgejo_actions</code> — runners/workflow_runs/notifications.</li>
             <li><code className="text-primary-400">forgejo_status</code> — health snapshot. All tools return dialogic dicts.</li>
+          </ul>
+        </div>
+        <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
+          <h4 className="font-semibold text-sm text-surface-300 border-b border-surface-800 pb-2 flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-primary-500" /> WRITING FROM THE DASHBOARD
+          </h4>
+          <ul className="text-sm text-surface-400 space-y-2">
+            <li>Repositories header: <strong className="text-surface-200">New</strong> opens the create dialog (private by default).</li>
+            <li>Drill-down tabs per repo: <strong className="text-surface-200">Issues</strong> (state filter, open + comment), <strong className="text-surface-200">Pulls</strong> (open, diff viewer, style select, two-click merge), <strong className="text-surface-200">Files</strong> (path + ref reader).</li>
+            <li>Merges and shutdowns are two-click: first click arms, second fires. Nothing mutates on a single stray click.</li>
+            <li>Settings bottom: Danger Zone stops the backend (orderly exit, restart via start.ps1).</li>
+            <li>Logs page, Webhook deliveries tab: the last 50 signed inbound events (configure secret via FORGEJO_WEBHOOK_SECRET).</li>
           </ul>
         </div>
         <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 space-y-3">
@@ -883,6 +995,524 @@ export function ChatPage() {
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── Repository Detail Tabs (Issues / Pulls / Files) ──────────────────────────
+
+const ISSUE_STATES = ['open', 'closed', 'all']
+const PR_STATES = ['open', 'closed', 'all']
+const MERGE_STYLES = ['merge', 'rebase', 'squash']
+
+function MutationBanner() {
+  const { mutationError, mutationOk } = useAppStore()
+  if (mutationError) {
+    return (
+      <div data-testid="mutation-error" className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg">
+        {mutationError}
+      </div>
+    )
+  }
+  if (mutationOk) {
+    return (
+      <div data-testid="mutation-ok" className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 p-2.5 rounded-lg">
+        {mutationOk}
+      </div>
+    )
+  }
+  return null
+}
+
+function IssuesTab() {
+  const {
+    repoIssues, repoIssuesLoading, repoIssuesError, repoIssuesState,
+    setRepoIssuesState, createIssue, commentOnIssue
+  } = useAppStore()
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [formError, setFormError] = useState('')
+  const [commentFor, setCommentFor] = useState(null)
+  const [commentBody, setCommentBody] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!title.trim()) {
+      setFormError('Title is required.')
+      return
+    }
+    setFormError('')
+    const ok = await createIssue(title.trim(), body)
+    if (ok) {
+      setTitle('')
+      setBody('')
+    }
+  }
+
+  const sendComment = async (index) => {
+    if (!commentBody.trim()) return
+    const ok = await commentOnIssue(index, commentBody)
+    if (ok) {
+      setCommentFor(null)
+      setCommentBody('')
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-surface-300 text-sm">ISSUES ({repoIssues.length})</span>
+        <select
+          value={repoIssuesState}
+          onChange={(e) => setRepoIssuesState(e.target.value)}
+          data-testid="issues-state"
+          className="bg-surface-950 border border-surface-800 rounded-lg text-sm px-2.5 py-1.5 text-surface-200 focus:outline-none"
+        >
+          {ISSUE_STATES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
+      <form onSubmit={submit} className="bg-surface-950 border border-surface-800 rounded-lg p-3 space-y-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="New issue title..."
+          data-testid="issue-new-title"
+          className="w-full bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Description (markdown, optional)..."
+          rows={2}
+          data-testid="issue-new-body"
+          className="w-full bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        {formError && <div className="text-sm text-red-400">{formError}</div>}
+        <button
+          type="submit"
+          data-testid="issue-create"
+          className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold rounded-lg transition-colors"
+        >
+          Open issue
+        </button>
+      </form>
+
+      <MutationBanner />
+      {repoIssuesLoading && <LoadingRow text="Loading issues..." />}
+      {repoIssuesError && <ErrorRow message={repoIssuesError} />}
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {repoIssues.map((issue) => (
+          <div key={issue.number} className="bg-surface-950 border border-surface-800 rounded-lg p-3 space-y-1.5">
+            <div className="text-sm font-medium text-surface-200 break-words">
+              #{issue.number} {issue.title}
+              <span className="ml-2 text-surface-500">({issue.state}, {issue.comments ?? 0} comments)</span>
+            </div>
+            {commentFor === issue.number ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  placeholder="Write a comment..."
+                  data-testid={`issue-comment-input-${issue.number}`}
+                  className="flex-1 bg-surface-900 border border-surface-800 rounded-lg px-3 py-1.5 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+                />
+                <button
+                  onClick={() => sendComment(issue.number)}
+                  data-testid={`issue-comment-send-${issue.number}`}
+                  className="px-2.5 py-1.5 bg-surface-800 hover:bg-surface-700 text-sm text-surface-200 rounded-lg"
+                >
+                  Post
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setCommentFor(issue.number)}
+                data-testid={`issue-comment-open-${issue.number}`}
+                className="text-sm text-primary-400 hover:underline"
+              >
+                Comment
+              </button>
+            )}
+          </div>
+        ))}
+        {!repoIssuesLoading && repoIssues.length === 0 && (
+          <div className="text-sm text-surface-500 italic">No issues found.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PullsTab() {
+  const {
+    repoPulls, repoPullsLoading, repoPullsError, repoPullsState,
+    setRepoPullsState, createPr, mergePr, fetchPrDiff
+  } = useAppStore()
+  const [title, setTitle] = useState('')
+  const [head, setHead] = useState('')
+  const [base, setBase] = useState('main')
+  const [body, setBody] = useState('')
+  const [formError, setFormError] = useState('')
+  const [diffFor, setDiffFor] = useState(null)
+  const [diffText, setDiffText] = useState('')
+  const [diffLoading, setDiffLoading] = useState(false)
+  const [mergeArmed, setMergeArmed] = useState(null)
+  const [mergeStyle, setMergeStyle] = useState('merge')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!title.trim() || !head.trim() || !base.trim()) {
+      setFormError('Title, head, and base are required.')
+      return
+    }
+    setFormError('')
+    const ok = await createPr({ title: title.trim(), head: head.trim(), base: base.trim(), body })
+    if (ok) {
+      setTitle('')
+      setHead('')
+      setBody('')
+    }
+  }
+
+  const showDiff = async (index) => {
+    if (diffFor === index) {
+      setDiffFor(null)
+      return
+    }
+    setDiffFor(index)
+    setDiffLoading(true)
+    setDiffText(await fetchPrDiff(index))
+    setDiffLoading(false)
+  }
+
+  const doMerge = async (index) => {
+    if (mergeArmed !== index) {
+      setMergeArmed(index)
+      return
+    }
+    setMergeArmed(null)
+    await mergePr(index, mergeStyle)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-surface-300 text-sm">PULL REQUESTS ({repoPulls.length})</span>
+        <select
+          value={repoPullsState}
+          onChange={(e) => setRepoPullsState(e.target.value)}
+          data-testid="pulls-state"
+          className="bg-surface-950 border border-surface-800 rounded-lg text-sm px-2.5 py-1.5 text-surface-200 focus:outline-none"
+        >
+          {PR_STATES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
+      <form onSubmit={submit} className="bg-surface-950 border border-surface-800 rounded-lg p-3 space-y-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="New PR title..."
+          data-testid="pr-new-title"
+          className="w-full bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            value={head}
+            onChange={(e) => setHead(e.target.value)}
+            placeholder="head branch"
+            data-testid="pr-new-head"
+            className="bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+          />
+          <input
+            value={base}
+            onChange={(e) => setBase(e.target.value)}
+            placeholder="base branch"
+            data-testid="pr-new-base"
+            className="bg-surface-900 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+          />
+        </div>
+        {formError && <div className="text-sm text-red-400">{formError}</div>}
+        <button
+          type="submit"
+          data-testid="pr-create"
+          className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold rounded-lg transition-colors"
+        >
+          Open pull request
+        </button>
+      </form>
+
+      <MutationBanner />
+      {repoPullsLoading && <LoadingRow text="Loading pull requests..." />}
+      {repoPullsError && <ErrorRow message={repoPullsError} />}
+      <div className="space-y-2 max-h-72 overflow-y-auto">
+        {repoPulls.map((pr) => (
+          <div key={pr.number} className="bg-surface-950 border border-surface-800 rounded-lg p-3 space-y-2">
+            <div className="text-sm font-medium text-surface-200 break-words">
+              #{pr.number} {pr.title}
+              <span className="ml-2 text-surface-500">
+                {pr.head?.ref} {'\u2794'} {pr.base?.ref} · {pr.state}
+                {typeof pr.mergeable === 'boolean' && (pr.mergeable ? ' · mergeable' : ' · conflicted')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => showDiff(pr.number)}
+                data-testid={`pr-diff-${pr.number}`}
+                className="px-2.5 py-1 bg-surface-800 hover:bg-surface-700 text-sm text-surface-200 rounded-lg"
+              >
+                {diffFor === pr.number ? 'Hide diff' : 'Diff'}
+              </button>
+              <select
+                value={mergeArmed === pr.number ? mergeStyle : 'merge'}
+                onChange={(e) => setMergeStyle(e.target.value)}
+                data-testid={`pr-merge-style-${pr.number}`}
+                className="bg-surface-900 border border-surface-800 rounded-lg text-sm px-2 py-1 text-surface-200 focus:outline-none"
+              >
+                {MERGE_STYLES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => doMerge(pr.number)}
+                onBlur={() => setMergeArmed(null)}
+                data-testid={`pr-merge-${pr.number}`}
+                className={`px-2.5 py-1 text-sm font-semibold rounded-lg transition-colors ${
+                  mergeArmed === pr.number
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-surface-800 hover:bg-surface-700 text-surface-200'
+                }`}
+              >
+                {mergeArmed === pr.number ? 'Confirm merge' : 'Merge'}
+              </button>
+            </div>
+            {diffFor === pr.number && (
+              <pre data-testid="pr-diff-view" className="bg-surface-900 p-2.5 rounded font-mono text-sm text-surface-300 overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
+                {diffLoading ? 'Loading diff...' : diffText}
+              </pre>
+            )}
+          </div>
+        ))}
+        {!repoPullsLoading && repoPulls.length === 0 && (
+          <div className="text-sm text-surface-500 italic">No pull requests found.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FilesTab() {
+  const { filePath, fileRef, fileContent, fileLoading, fileError, setFilePath, setFileRef, fetchFileContent } =
+    useAppStore()
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+        <input
+          value={filePath}
+          onChange={(e) => setFilePath(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') fetchFileContent()
+          }}
+          placeholder="README.md"
+          data-testid="file-path"
+          className="bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <input
+          value={fileRef}
+          onChange={(e) => setFileRef(e.target.value)}
+          placeholder="main"
+          data-testid="file-ref"
+          className="w-24 bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <button
+          onClick={fetchFileContent}
+          data-testid="file-load"
+          className="px-3 py-2 bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold rounded-lg transition-colors"
+        >
+          Load
+        </button>
+      </div>
+      {fileLoading && <LoadingRow text="Reading file..." />}
+      {fileError && <ErrorRow message={fileError} onRetry={fetchFileContent} />}
+      {!fileLoading && !fileError && fileContent && (
+        <pre data-testid="file-content" className="bg-surface-950 border border-surface-800 p-3 rounded-lg font-mono text-sm text-surface-300 overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap break-words">
+          {fileContent}
+        </pre>
+      )}
+    </div>
+  )
+}
+
+export function RepoDetail({ workflows, workflowsLoading }) {
+  const { selectedRepo } = useAppStore()
+  const [tab, setTab] = useState('overview')
+
+  if (!selectedRepo) {
+    return (
+      <div className="text-center py-12 text-surface-500 text-sm italic">
+        Select a repository from the grid to view details.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className="font-semibold text-sm text-surface-100 block">{selectedRepo.full_name}</span>
+        <a
+          href={selectedRepo.html_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-500 hover:underline inline-flex items-center gap-1.5 mt-1 text-sm"
+        >
+          Open in Forgejo
+        </a>
+      </div>
+
+      <div className="flex items-center gap-1 bg-surface-950 border border-surface-800 rounded-lg p-1 w-fit">
+        {[
+          { id: 'overview', label: 'Overview' },
+          { id: 'issues', label: 'Issues' },
+          { id: 'pulls', label: 'Pulls' },
+          { id: 'files', label: 'Files' }
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            data-testid={`repo-tab-${t.id}`}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === t.id ? 'bg-surface-700 text-surface-100' : 'text-surface-500 hover:text-surface-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="space-y-5 text-sm text-surface-400">
+          <div className="space-y-2 border-t border-surface-800 pt-3">
+            <span className="font-medium text-surface-300 block">Actions workflows runs:</span>
+            {workflowsLoading && <div className="text-surface-500">Fetching runs...</div>}
+            {workflows.length === 0 && !workflowsLoading && (
+              <div className="text-surface-500 italic">No workflow runs found.</div>
+            )}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {workflows.slice(0, 5).map((run) => (
+                <div key={run.id} className="flex items-center justify-between bg-surface-950 p-2 rounded">
+                  <span className="truncate max-w-[10rem] font-mono text-sm">{run.title}</span>
+                  <span className={`text-sm px-1.5 py-0.5 rounded font-semibold ${
+                    run.conclusion === 'success'
+                      ? 'bg-green-500/10 text-green-400'
+                      : run.conclusion === 'failure'
+                        ? 'bg-red-500/10 text-red-400'
+                        : 'bg-yellow-500/10 text-yellow-400'
+                  }`}>
+                    {run.conclusion || run.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t border-surface-800 pt-3">
+            <span className="font-medium text-surface-300 block">Clone Commands:</span>
+            <pre className="bg-surface-950 p-2.5 rounded font-mono text-sm text-surface-300 overflow-x-auto select-all">
+              git clone {selectedRepo.clone_url}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {tab === 'issues' && <IssuesTab />}
+      {tab === 'pulls' && <PullsTab />}
+      {tab === 'files' && <FilesTab />}
+    </div>
+  )
+}
+
+export function NewRepoDialog({ open, onClose }) {
+  const { createRepo, mutationError, mutationOk } = useAppStore()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [isPrivate, setIsPrivate] = useState(true)
+  const [formError, setFormError] = useState('')
+
+  if (!open) return null
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) {
+      setFormError('Repository name is required.')
+      return
+    }
+    setFormError('')
+    const ok = await createRepo({ name: name.trim(), description, isPrivate })
+    if (ok) {
+      setName('')
+      setDescription('')
+      onClose()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <form
+        onSubmit={submit}
+        data-testid="repo-create-dialog"
+        className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-full max-w-md space-y-4"
+      >
+        <h4 className="font-semibold text-sm text-surface-200">NEW REPOSITORY</h4>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Repository name..."
+          data-testid="repo-create-name"
+          className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <input
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description (optional)..."
+          data-testid="repo-create-desc"
+          className="w-full bg-surface-950 border border-surface-800 rounded-lg px-3 py-2 text-sm text-surface-200 focus:outline-none focus:border-primary-500"
+        />
+        <label className="flex items-center gap-2 text-sm text-surface-300">
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+            data-testid="repo-create-private"
+          />
+          Private repository
+        </label>
+        {formError && <div className="text-sm text-red-400">{formError}</div>}
+        {mutationError && <div className="text-sm text-red-400">{mutationError}</div>}
+        {mutationOk && <div className="text-sm text-green-400">{mutationOk}</div>}
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            data-testid="repo-create-cancel"
+            className="px-4 py-2 bg-surface-800 hover:bg-surface-700 text-sm text-surface-200 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            data-testid="repo-create-submit"
+            className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold rounded-lg"
+          >
+            Create
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
