@@ -3,7 +3,7 @@
 
 Generated on: 2026-07-20
 
-## Tools (16 registered)
+## Tools (18 registered)
 - **`forgejo_profile_list`**: List configured profiles.
 - **`forgejo_profile_add`**: Add profile credentials.
 - **`forgejo_profile_set_active`**: Swap active target.
@@ -20,11 +20,18 @@ Generated on: 2026-07-20
 - **`forgejo_runner_list`**: Monitor active Gitea/Forgejo runner agents.
 - **`forgejo_workflow_runs`**: Inspect active Actions workflow jobs.
 - **`forgejo_file_get`**: Fetch raw file content.
+- **`forgejo_status`**: Health, version, profiles, tool inventory (dialogic dict).
+- **`forgejo_shutdown`**: Confirm-gated server termination.
+
+## Resources / prompts
+- `forgejo://profiles` (MCP resource, no tokens), `forgejo-triage` (MCP prompt).
+- REST: `GET /health`, `GET /api/status`, `GET /api/capabilities`,
+  `GET /api/skills`, `POST /api/shutdown`.
 
 ## Tech Stack
 - **Backend**: Python 3.12+, FastMCP 3.4.4+, FastAPI, uvicorn, HTTPX
 - **Frontend**: React 19, Vite, Tailwind CSS v3, Zustand, Lucide Icons
-- **Ports**: Frontend 10760, Backend 10761
+- **Ports**: Frontend 11132, Backend 11133
 
 ## Environment Variables
 - `FORGEJO_URL` / `FORGEJO_TOKEN` (Fallback env profile default)

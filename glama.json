@@ -73,6 +73,14 @@
       {
         "name": "forgejo_file_get",
         "description": "Read contents of a file directly from repository."
+      },
+      {
+        "name": "forgejo_status",
+        "description": "Report server health, version, profiles, and tool inventory."
+      },
+      {
+        "name": "forgejo_shutdown",
+        "description": "Shut down the server process (confirm-gated)."
       }
     ]
   },

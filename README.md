@@ -45,6 +45,11 @@ Requires [uv](https://github.com/astral-sh/uv) and [Bun](https://bun.sh).
 - `forgejo_pr_*` — list / create / merge / diff
 - `forgejo_runner_list` / `forgejo_workflow_runs`
 - `forgejo_file_get`
+- `forgejo_status` — health/version/profiles (dialogic dict)
+- `forgejo_shutdown` — confirm-gated termination
+
+Plus MCP resource `forgejo://profiles`, prompt `forgejo-triage`, and REST
+`GET /api/status`, `GET /api/skills`, `POST /api/shutdown`.
 
 ## License
 
