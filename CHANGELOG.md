@@ -22,6 +22,10 @@ Update saved MCP tool calls; REST API is unchanged.
   Logs (ring buffer), Help — 12 views; `text-xs` eliminated
 - Skill rebuild (97 lines, 3 workflows, troubleshooting); Playwright e2e
   (18 specs green) + `just e2e` + CI e2e job
+- Inbound webhook receiver `POST /api/webhooks/forgejo` (HMAC-SHA256,
+  `FORGEJO_WEBHOOK_SECRET`) + `GET /api/webhooks/events` delivery log
+- Saved-call refresh: mirror project pages (mcp-central-docs, documentation-mcp),
+  versions aligned (`__init__`, plugin, sidebar), `just ci` via bun, web README
 
 ## [Unreleased] (assfix 2026-10-14, second full pass)
 

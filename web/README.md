@@ -1,16 +1,21 @@
-# React + Vite
+# forgejo-mcp web companion
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite + Tailwind v3 + Zustand dashboard for forgejo-mcp (Forgejo/Codeberg).
 
-Currently, two official plugins are available:
+- Dev: http://127.0.0.1:11132 (proxies `/api`, `/docs`, `/openapi.json`, `/redoc` to :11133)
+- Backend: FastAPI on http://127.0.0.1:11133 (`GET /health`)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
 
-## React Compiler
+| Command | What |
+|---|---|
+| `bun run dev` | Vite dev server (:11132, strict port) |
+| `bun run build` | Production bundle → `dist/` (served by the backend when present) |
+| `bun run lint` | oxlint over `src/` |
+| `bun run e2e` | Playwright suite (boots backend + vite itself) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Views (12): Dashboard, Inbox, Profiles, Repositories, Actions Runners, Tools,
+Skills, Chat (SSE streaming via `/api/llm/chat/stream`), Settings, Logs, Help,
+API Docs. Global state lives in `src/store.js` (Zustand); extra views go in
+`src/pages.jsx`. UI text uses `text-sm` minimum (no `text-xs`); all interactive
+controls carry `data-testid` attributes (see `e2e/` specs for the contract).
