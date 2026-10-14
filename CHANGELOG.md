@@ -33,6 +33,8 @@ Update saved MCP tool calls; REST API is unchanged.
   (open + diff viewer + two-click merge), Files (path + ref reader) tabs;
   Settings Danger-Zone shutdown; Logs webhook-deliveries tab; 7 write-proxy
   REST routes with tests; e2e 21/21
+- Dashboard hero (live version/ports/status), 5 quick-action shortcuts,
+  recent-warnings preview box; e2e 24/24
 - Saved-call refresh: mirror project pages (mcp-central-docs, documentation-mcp),
   versions aligned (`__init__`, plugin, sidebar), `just ci` via bun, web README
 

@@ -29,6 +29,7 @@ export const useAppStore = create((set, get) => ({
   // Service Status State
   serviceStatus: null,
   serviceStatusLoading: false,
+  recentLogs: [],
 
   // Notifications (Inbox) State
   notifications: [],
@@ -228,6 +229,17 @@ export const useAppStore = create((set, get) => ({
       set({ serviceStatus: await res.json(), serviceStatusLoading: false });
     } catch {
       set({ serviceStatus: null, serviceStatusLoading: false });
+    }
+  },
+
+  // --- Recent Logs (dashboard preview: latest warnings and errors) ---
+  fetchRecentLogs: async () => {
+    try {
+      const res = await fetch('/api/logs?level=WARNING&limit=5');
+      const data = await res.json();
+      set({ recentLogs: data.logs || [] });
+    } catch {
+      set({ recentLogs: [] });
     }
   },
 

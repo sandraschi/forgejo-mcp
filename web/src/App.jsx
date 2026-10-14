@@ -71,6 +71,8 @@ export default function App() {
     workflows,
     workflowsLoading,
     selectedRepo,
+    serviceStatus,
+    recentLogs,
     localLlmStatus,
     localLlmUrl,
     localLlmModel,
@@ -83,7 +85,9 @@ export default function App() {
     selectRepo,
     detectLocalLlm,
     fetchRepos,
-    fetchRunners
+    fetchRunners,
+    fetchServiceStatus,
+    fetchRecentLogs
   } = useAppStore()
 
   // Profile Form State
@@ -98,7 +102,9 @@ export default function App() {
   useEffect(() => {
     fetchProfiles()
     detectLocalLlm()
-  }, [fetchProfiles, detectLocalLlm])
+    fetchServiceStatus()
+    fetchRecentLogs()
+  }, [fetchProfiles, detectLocalLlm, fetchServiceStatus, fetchRecentLogs])
 
   const handleAddProfile = async (e) => {
     e.preventDefault()
@@ -281,6 +287,29 @@ export default function App() {
           {activeView === 'dashboard' && (
             <div className="space-y-6">
 
+              {/* Hero */}
+              <div
+                data-testid="dashboard-hero"
+                className="bg-gradient-to-r from-surface-900 via-surface-900 to-primary-950/40 border border-surface-800 rounded-xl p-5 flex flex-wrap items-center gap-4"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${serviceStatus ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-base text-surface-100">Forgejo Companion</h2>
+                    <p className="text-sm text-surface-400 truncate">
+                      Manage Forgejo and Codeberg instances — repos, issues, PRs, runners, inbox — plus local-LLM chat.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-surface-400 shrink-0">
+                  <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">v{APP_VERSION}</code>
+                  <code className="font-mono bg-surface-950 border border-surface-800 px-2 py-1 rounded">:11132/:11133</code>
+                  {serviceStatus && (
+                    <span className="text-surface-500">up {Math.round(serviceStatus.uptime_seconds)}s · {serviceStatus.tool_count} tools</span>
+                  )}
+                </div>
+              </div>
+
               {/* GPU Opportunity Banner */}
               {localLlmStatus === 'not_detected' && (
                 <div
@@ -347,11 +376,50 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Status Details / Quick Mirror Panel */}
+              {/* Quick Actions */}
+              <div className="flex flex-wrap items-center gap-2" data-testid="dashboard-quick-actions">
+                <button
+                  onClick={() => setShowNewRepo(true)}
+                  data-testid="quick-action-new-repo"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-primary-500 hover:bg-primary-600 text-surface-950 text-sm font-semibold rounded-lg transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> New repository
+                </button>
+                <button
+                  onClick={() => setActiveView('inbox')}
+                  data-testid="quick-action-inbox"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-900 hover:bg-surface-800 border border-surface-800 text-sm text-surface-200 rounded-lg transition-colors"
+                >
+                  <Inbox className="h-4 w-4" /> Triage inbox
+                </button>
+                <button
+                  onClick={() => setActiveView('repositories')}
+                  data-testid="quick-action-repos"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-900 hover:bg-surface-800 border border-surface-800 text-sm text-surface-200 rounded-lg transition-colors"
+                >
+                  <GitFork className="h-4 w-4" /> Review PRs
+                </button>
+                <button
+                  onClick={() => setActiveView('chat')}
+                  data-testid="quick-action-chat"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-900 hover:bg-surface-800 border border-surface-800 text-sm text-surface-200 rounded-lg transition-colors"
+                >
+                  <MessageSquare className="h-4 w-4" /> Ask chat
+                </button>
+                <button
+                  onClick={detectLocalLlm}
+                  data-testid="quick-action-rescan"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-900 hover:bg-surface-800 border border-surface-800 text-sm text-surface-200 rounded-lg transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" /> Rescan LLM
+                </button>
+              </div>
+
+              {/* Status Details / Logs / About */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Instance Info */}
-                <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg lg:col-span-2 space-y-4">
+                <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg space-y-4">
                   <h3 className="font-semibold text-sm tracking-wider text-surface-300 border-b border-surface-800 pb-2">
                     INSTANCE CONNECTION HEALTH
                   </h3>
@@ -395,6 +463,37 @@ export default function App() {
                   <p className="text-sm text-surface-400 leading-relaxed">
                     It provides a lightweight, GPLv3-licensed, self-hosted repository collaboration platform containing issues, pull requests, package registries, and GitHub-compatible runner actions.
                   </p>
+                </div>
+
+                {/* Recent Logs Preview */}
+                <div
+                  data-testid="dashboard-recent-logs"
+                  className="bg-surface-900 border border-surface-800 rounded-xl p-5 shadow-lg space-y-3"
+                >
+                  <h3 className="font-semibold text-sm tracking-wider text-surface-300 border-b border-surface-800 pb-2 flex items-center justify-between">
+                    <span>RECENT WARNINGS</span>
+                    <button
+                      onClick={() => setActiveView('logs')}
+                      data-testid="recent-logs-view-all"
+                      className="text-sm text-primary-400 hover:underline font-normal"
+                    >
+                      View all
+                    </button>
+                  </h3>
+                  {recentLogs.length === 0 && (
+                    <div className="text-sm text-surface-500 italic py-2">All quiet — no warnings or errors.</div>
+                  )}
+                  <div className="space-y-1.5">
+                    {recentLogs.map((l, i) => (
+                      <div key={i} className="text-sm text-surface-400 break-words">
+                        <span className={l.level === 'INFO' ? 'text-green-400' : 'text-amber-400'}>
+                          {l.level}
+                        </span>{' '}
+                        <span className="text-surface-500">{l.time}</span>{' '}
+                        {l.message.slice(0, 90)}{l.message.length > 90 ? '…' : ''}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
