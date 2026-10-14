@@ -21,6 +21,10 @@ run:
 run-http:
     $env:MCP_TRANSPORT="http"; uv run python -m forgejo_mcp
 
+# Fleet `serve` entrypoint (HTTP mode for the launcher/webapp stack)
+serve:
+    $env:MCP_TRANSPORT="http"; uv run python -m forgejo_mcp
+
 # Format code using ruff
 fmt:
     uv run ruff format src/ tests/
