@@ -16,6 +16,8 @@ web/dist/
 web/node_modules/
 web/test-results/
 web/playwright-report/
+# Playwright run marker if the suite is ever launched from the repo root
+test-results/
 
 # Local configuration and credentials
 .env
