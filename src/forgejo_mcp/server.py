@@ -782,6 +782,22 @@ async def api_webhook_events(limit: int = 50):
     return {"count": len(events), "events": events}
 
 
+@web_app.get("/api/forgejo/ping")
+async def api_forgejo_ping(url: str = "http://127.0.0.1:11243"):
+    """Probe a Forgejo/Codeberg base URL for the onboarding panel.
+
+    Only http(s) URLs are fetched, 3s timeout, version endpoint only —
+    no credentials are sent. Returns reachability plus the server version.
+    """
+    parsed = url.strip().rstrip("/")
+    if not parsed.lower().startswith(("http://", "https://")):
+        return {"reachable": False, "url": url, "error": "URL must start with http:// or https://."}
+    payload = await _probe_json(f"{parsed}/api/v1/version", timeout=3.0)
+    if payload is None:
+        return {"reachable": False, "url": parsed, "error": "No Forgejo API answer at /api/v1/version."}
+    return {"reachable": True, "url": parsed, "version": str(payload.get("version", "?"))}
+
+
 class ChatMessage(BaseModel):
     role: str = "user"
     content: str = ""

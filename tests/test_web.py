@@ -594,6 +594,10 @@ def _sign(secret: str, body: bytes) -> str:
     import hmac
 
     return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    import hashlib
+    import hmac
+
+    return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
 def test_webhook_disabled_without_secret(monkeypatch):
@@ -631,3 +635,36 @@ def test_webhook_accepts_and_lists(monkeypatch):
     assert listed.status_code == 200
     assert listed.json()["count"] >= 1
     assert listed.json()["events"][0]["event"] == "push"
+
+
+# ── Forgejo ping (onboarding probe) ──────────────────────────────────────────
+
+
+def test_forgejo_ping_rejects_scheme():
+    response = client.get("/api/forgejo/ping", params={"url": "gopher://x"})
+    assert response.status_code == 200
+    assert response.json() == {
+        "reachable": False,
+        "url": "gopher://x",
+        "error": "URL must start with http:// or https://.",
+    }
+
+
+def test_forgejo_ping_closed_port():
+    response = client.get("/api/forgejo/ping", params={"url": "http://127.0.0.1:9"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["reachable"] is False
+    assert "version" in data["error"]
+
+
+@patch("forgejo_mcp.server._probe_json")
+def test_forgejo_ping_success(mock_probe):
+    mock_probe.return_value = {"version": "11.0.0"}
+    response = client.get("/api/forgejo/ping", params={"url": "http://127.0.0.1:11243/"})
+    assert response.status_code == 200
+    assert response.json() == {
+        "reachable": True,
+        "url": "http://127.0.0.1:11243",
+        "version": "11.0.0",
+    }
