@@ -1,0 +1,9 @@
+forgejo-mcp.server INFO Skills provider serving D:\Dev\repos\forgejo-mcp\skills
+INFO:     Started server process [284936]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:11133 (Press CTRL+C to quit)
+httpx INFO HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+httpx INFO HTTP Request: GET http://127.0.0.1:1234/v1/models "HTTP/1.1 200 OK"
+httpx INFO HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+httpx INFO HTTP Request: GET http://127.0.0.1:1234/v1/models "HTTP/1.1 200 OK"
